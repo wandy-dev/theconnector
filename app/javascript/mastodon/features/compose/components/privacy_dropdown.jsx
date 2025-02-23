@@ -23,8 +23,11 @@ const messages = defineMessages({
   private_long: { id: 'privacy.private.long', defaultMessage: 'Only your followers' },
   direct_short: { id: 'privacy.direct.short', defaultMessage: 'Specific people' },
   direct_long: { id: 'privacy.direct.long', defaultMessage: 'Everyone mentioned in the post' },
+  local_short: { id: 'privacy.local.short', defaultMessage: 'Local only' },
+  local_long: { id: 'privacy.local.long', defaultMessage: 'Only to your local instance followers and timeline' },
   change_privacy: { id: 'privacy.change', defaultMessage: 'Change post privacy' },
   unlisted_extra: { id: 'privacy.unlisted.additional', defaultMessage: 'This behaves exactly like public, except the post will not appear in live feeds or hashtags, explore, or Mastodon search, even if you are opted-in account-wide.' },
+  local_extra: { id: 'privacy.unlisted.additional', defaultMessage: 'This behaves exactly like public, except the post will not be sent to followers from other servers' },
 });
 
 class PrivacyDropdown extends PureComponent {
@@ -95,6 +98,7 @@ class PrivacyDropdown extends PureComponent {
       { icon: 'globe', iconComponent: PublicIcon, value: 'public', text: formatMessage(messages.public_short), meta: formatMessage(messages.public_long) },
       { icon: 'unlock', iconComponent: QuietTimeIcon,  value: 'unlisted', text: formatMessage(messages.unlisted_short), meta: formatMessage(messages.unlisted_long), extra: formatMessage(messages.unlisted_extra) },
       { icon: 'lock', iconComponent: LockIcon, value: 'private', text: formatMessage(messages.private_short), meta: formatMessage(messages.private_long) },
+      { icon: 'unlock', iconComponent: QuietTimeIcon,  value: 'local', text: formatMessage(messages.local_short), meta: formatMessage(messages.local_long), extra: formatMessage(messages.local_extra) },
     ];
 
     if (!this.props.noDirect) {

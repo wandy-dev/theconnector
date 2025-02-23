@@ -22,6 +22,10 @@ const messages = defineMessages({
     id: 'privacy.direct.short',
     defaultMessage: 'Specific people',
   },
+  local_short: {
+    id: 'privacy.local.short',
+    defaultMessage: 'Local people',
+  },
 });
 
 export const VisibilityIcon: React.FC<{ visibility: StatusVisibility }> = ({
@@ -49,6 +53,11 @@ export const VisibilityIcon: React.FC<{ visibility: StatusVisibility }> = ({
       icon: 'at',
       iconComponent: AlternateEmailIcon,
       text: intl.formatMessage(messages.direct_short),
+    },
+    local: {
+      icon: 'unlock',
+      iconComponent: QuietTimeIcon,
+      text: intl.formatMessage(messages.local_short),
     },
   };
 

@@ -157,6 +157,7 @@ class Api::V1::StatusesController < Api::BaseController
       :visibility,
       :language,
       :scheduled_at,
+      :federated,
       allowed_mentions: [],
       media_ids: [],
       media_attributes: [
