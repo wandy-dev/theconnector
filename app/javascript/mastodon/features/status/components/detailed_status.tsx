@@ -15,6 +15,7 @@ import AlternateEmailIcon from '@/material-icons/400-24px/alternate_email.svg?re
 import { AnimatedNumber } from 'mastodon/components/animated_number';
 import { ContentWarning } from 'mastodon/components/content_warning';
 import EditedTimestamp from 'mastodon/components/edited_timestamp';
+import { FederationIcon } from 'mastodon/components/federation_icon';
 import type { StatusLike } from 'mastodon/components/hashtag_bar';
 import { getHashtagBarForStatus } from 'mastodon/components/hashtag_bar';
 import { Icon } from 'mastodon/components/icon';
@@ -251,6 +252,12 @@ export const DetailedStatus: React.FC<{
     </>
   );
 
+  const federationLink = (
+    <>
+      ·<FederationIcon federation={status.get('theconnector_federation')} />
+    </>
+  );
+
   if (['private', 'direct'].includes(status.get('visibility') as string)) {
     reblogLink = '';
   } else {
@@ -371,6 +378,7 @@ export const DetailedStatus: React.FC<{
             </a>
 
             {visibilityLink}
+            {federationLink}
             {applicationLink}
           </div>
 
