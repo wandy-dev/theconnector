@@ -15,6 +15,15 @@ class PostStatusService < BaseService
     end
   end
 
+  class FederationMentionsError < StandardError
+    attr_reader :accounts
+
+    def initialize(message, accounts)
+      super(message)
+      @accounts = accounts
+    end
+  end
+
   # Post a text status update, fetch and notify remote users mentioned
   # @param [Account] account Account from which to post
   # @param [Hash] options
@@ -31,6 +40,7 @@ class PostStatusService < BaseService
   # @option [String] :idempotency Optional idempotency key
   # @option [Boolean] :with_rate_limit
   # @option [Enumerable] :allowed_mentions Optional array of expected mentioned account IDs, raises `UnexpectedMentionsError` if unexpected accounts end up in mentions
+  # @option [String] :federation To Determine if the post should be federated with other servers, raises `FederationMentionsError` remote accounts are in mentions
   # @return [Status]
   def call(account, options = {})
     @account     = account
@@ -65,6 +75,7 @@ class PostStatusService < BaseService
     @sensitive    = (@options[:sensitive].nil? ? @account.user&.setting_default_sensitive : @options[:sensitive]) || @options[:spoiler_text].present?
     @text         = @options.delete(:spoiler_text) if @text.blank? && @options[:spoiler_text].present?
     @visibility   = @options[:visibility] || @account.user&.setting_default_privacy
+    @federation   = @options[:federation]
     @visibility   = :unlisted if @visibility&.to_sym == :public && @account.silenced?
     @scheduled_at = @options[:scheduled_at]&.to_datetime
     @scheduled_at = nil if scheduled_in_the_past?
@@ -76,6 +87,7 @@ class PostStatusService < BaseService
     @status = @account.statuses.new(status_attributes)
     process_mentions_service.call(@status, save_records: false)
     safeguard_mentions!(@status)
+    safeguard_federated_mentions!(@status)
 
     # The following transaction block is needed to wrap the UPDATEs to
     # the media attachments when the status is created
@@ -93,6 +105,15 @@ class PostStatusService < BaseService
     return if unexpected_accounts.empty?
 
     raise UnexpectedMentionsError.new('Post would be sent to unexpected accounts', unexpected_accounts)
+  end
+
+  def safeguard_federated_mentions!(status)
+    return if @options[:federation] == 'federation_full'
+
+    federated_accounts = status.mentions.map(&:account).to_a.reject(&:local?)
+    return if federated_accounts.empty?
+
+    raise FederationMentionsError.new('Post mentions remote accounts, but is marked for local sharing only', federated_accounts)
   end
 
   def schedule_status!
@@ -121,7 +142,7 @@ class PostStatusService < BaseService
     Trends.register!(@status) if ActiveModel::Type::Boolean.new.cast(ENV.fetch('EASY_TREND', nil))
     LinkCrawlWorker.perform_async(@status.id)
     DistributionWorker.perform_async(@status.id)
-    ActivityPub::DistributionWorker.perform_async(@status.id)
+    ActivityPub::DistributionWorker.perform_async(@status.id) if @options[:federation] == 'federation_full'
     PollExpirationNotifyWorker.perform_at(@status.poll.expires_at, @status.poll.id) if @status.poll
   end
 
@@ -194,6 +215,7 @@ class PostStatusService < BaseService
       sensitive: @sensitive,
       spoiler_text: @options[:spoiler_text] || '',
       visibility: @visibility,
+      theconnector_federation: @federation,
       language: valid_locale_cascade(@options[:language], @account.user&.preferred_posting_language, I18n.default_locale),
       application: @options[:application],
       rate_limit: @options[:with_rate_limit],
