@@ -6,8 +6,8 @@ class REST::StatusSerializer < ActiveModel::Serializer
   # Please update `app/javascript/mastodon/api_types/statuses.ts` when making changes to the attributes
 
   attributes :id, :created_at, :in_reply_to_id, :in_reply_to_account_id,
-             :sensitive, :spoiler_text, :visibility, :language,
-             :uri, :url, :replies_count, :reblogs_count,
+             :sensitive, :spoiler_text, :visibility, :theconnector_federation,
+             :language, :uri, :url, :replies_count, :reblogs_count,
              :favourites_count, :edited_at
 
   attribute :favourited, if: :current_user?
@@ -62,6 +62,8 @@ class REST::StatusSerializer < ActiveModel::Serializer
       object.visibility
     end
   end
+
+  delegate :theconnector_federation, to: :object
 
   def sensitive
     if current_user? && current_user.account_id == object.account_id

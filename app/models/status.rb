@@ -27,6 +27,7 @@
 #  edited_at                    :datetime
 #  trendable                    :boolean
 #  ordered_media_attachment_ids :bigint(8)        is an Array
+#  theconnector_federation      :string           default("federation_full")
 #
 
 class Status < ApplicationRecord
