@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.3.4-theconnector1.0.0] - 2025-03-05
+
+### Changed
+
+- Added theconnector_federation column statuses table to allow for upcoming local only toots feature
+
+### Fixed
+
+- Fix incorrect version number being sent to version check server
+
+
 ## [4.3.4-theconnector-0.4.0] - 2025-03-04
 
 ### Security
