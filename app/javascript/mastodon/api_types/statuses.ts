@@ -13,6 +13,12 @@ export type StatusVisibility =
   // | 'limited' // This is never exposed to the API (they become `private`)
   | 'direct';
 
+// See app/modals/status.rb
+export type StatusFederation =
+  | 'federation_full'
+  | 'federation_limited'
+  | 'federation_local';
+
 export interface ApiStatusApplicationJSON {
   name: string;
   website: string;
@@ -89,6 +95,7 @@ export interface ApiStatusJSON {
   sensitive: boolean;
   spoiler_text?: string;
   visibility: StatusVisibility;
+  theconnector_federation: StatusFederation;
   language: string;
   uri: string;
   url: string;

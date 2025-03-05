@@ -135,6 +135,22 @@ RSpec.describe PostStatusService do
     )
   end
 
+  it 'creates a status with the given federation' do
+    status = create_status_with_options(theconnector_federation: :federation_limited)
+
+    expect(status).to be_persisted
+    expect(status.theconnector_federation).to eq 'federation_limited'
+  end
+
+  it 'raises on an invalid federation' do
+    expect do
+      create_status_with_options(theconnector_federation: :asdf)
+    end.to raise_error(
+      ActiveRecord::RecordInvalid,
+      'Validation failed: Theconnector federation is not included in the list'
+    )
+  end
+
   it 'creates a status with limited visibility for silenced users' do
     status = subject.call(Fabricate(:account, silenced: true), text: 'test', visibility: :public)
 
@@ -203,7 +219,7 @@ RSpec.describe PostStatusService do
     expect(hashtags_service).to have_received(:call).with(status)
   end
 
-  it 'gets distributed' do
+  it 'gets distributed when federation is full' do
     allow(DistributionWorker).to receive(:perform_async)
     allow(ActivityPub::DistributionWorker).to receive(:perform_async)
 
