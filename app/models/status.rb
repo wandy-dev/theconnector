@@ -54,6 +54,7 @@ class Status < ApplicationRecord
   update_index('public_statuses', :proper)
 
   enum :visibility, { public: 0, unlisted: 1, private: 2, direct: 3, limited: 4 }, suffix: :visibility, validate: true
+  enum :theconnector_federation, { federation_full: 0, federation_limited: 1, federation_local: 2 }, suffix: :theconnector_federation, validate: true
 
   belongs_to :application, class_name: 'Doorkeeper::Application', optional: true
 
@@ -141,6 +142,7 @@ class Status < ApplicationRecord
   before_validation :prepare_contents, if: :local?
   before_validation :set_reblog
   before_validation :set_visibility
+  before_validation :set_federation
   before_validation :set_conversation
   before_validation :set_local
 
@@ -417,6 +419,10 @@ class Status < ApplicationRecord
   def set_visibility
     self.visibility = reblog.visibility if reblog? && visibility.nil?
     self.visibility = (account.locked? ? :private : :public) if visibility.nil?
+  end
+
+  def set_federation
+    self.theconnector_federation = reblog.theconnector_federation if reblog? && theconnector_federation.nil?
   end
 
   def set_conversation

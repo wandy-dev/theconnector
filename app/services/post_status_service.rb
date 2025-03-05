@@ -40,7 +40,7 @@ class PostStatusService < BaseService
   # @option [String] :idempotency Optional idempotency key
   # @option [Boolean] :with_rate_limit
   # @option [Enumerable] :allowed_mentions Optional array of expected mentioned account IDs, raises `UnexpectedMentionsError` if unexpected accounts end up in mentions
-  # @option [String] :federation To Determine if the post should be federated with other servers, raises `FederationMentionsError` remote accounts are in mentions
+  # @option [String] :theconnector_federation To Determine if the post should be federated with other servers, raises `FederationMentionsError` remote accounts are in mentions
   # @return [Status]
   def call(account, options = {})
     @account     = account
@@ -75,7 +75,7 @@ class PostStatusService < BaseService
     @sensitive    = (@options[:sensitive].nil? ? @account.user&.setting_default_sensitive : @options[:sensitive]) || @options[:spoiler_text].present?
     @text         = @options.delete(:spoiler_text) if @text.blank? && @options[:spoiler_text].present?
     @visibility   = @options[:visibility] || @account.user&.setting_default_privacy
-    @federation   = @options[:federation]
+    @federation   = @options[:theconnector_federation] || 'federation_full'
     @visibility   = :unlisted if @visibility&.to_sym == :public && @account.silenced?
     @scheduled_at = @options[:scheduled_at]&.to_datetime
     @scheduled_at = nil if scheduled_in_the_past?
@@ -108,7 +108,7 @@ class PostStatusService < BaseService
   end
 
   def safeguard_federated_mentions!(status)
-    return if @options[:federation] == 'federation_full'
+    return if @federation == 'federation_full'
 
     federated_accounts = status.mentions.map(&:account).to_a.reject(&:local?)
     return if federated_accounts.empty?
@@ -142,7 +142,7 @@ class PostStatusService < BaseService
     Trends.register!(@status) if ActiveModel::Type::Boolean.new.cast(ENV.fetch('EASY_TREND', nil))
     LinkCrawlWorker.perform_async(@status.id)
     DistributionWorker.perform_async(@status.id)
-    ActivityPub::DistributionWorker.perform_async(@status.id) if @options[:federation] == 'federation_full'
+    ActivityPub::DistributionWorker.perform_async(@status.id) if @federation == 'federation_full'
     PollExpirationNotifyWorker.perform_at(@status.poll.expires_at, @status.poll.id) if @status.poll
   end
 
