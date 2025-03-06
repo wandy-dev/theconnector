@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.3.4-theconnector0.5.0-rc1] - 2025-03-07
+
+### Fixed
+
+- Fix incorrect version number being sent to version check server
+
+>>>>>>> b34fe40fd (send upstream version of the Mastodon Gem to version check api)
 ## [4.3.4-theconnector-0.4.0] - 2025-03-04
 
 ### Security
