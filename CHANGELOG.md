@@ -12,7 +12,6 @@ All notable changes to this project will be documented in this file.
 
 - Fix incorrect version number being sent to version check server
 
-
 ## [4.3.4-theconnector-0.4.0] - 2025-03-04
 
 ### Security
