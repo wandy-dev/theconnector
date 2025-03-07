@@ -85,8 +85,8 @@ class FederationDropdown extends PureComponent {
     const { intl: { formatMessage } } = this.props;
 
     this.options = [
-      { icon: 'globe', iconComponent: PublicIcon, value: 'federation_full', text: formatMessage(messages.federation_short), meta: formatMessage(messages.federation_long) },
-      { icon: 'home', iconComponent: HomeIcon,  value: 'federation_local', text: formatMessage(messages.local_only_short), meta: formatMessage(messages.local_only_long)},
+      { icon: 'globe', iconComponent: PublicIcon, value: 'full', text: formatMessage(messages.federation_short), meta: formatMessage(messages.federation_long) },
+      { icon: 'home', iconComponent: HomeIcon,  value: 'local', text: formatMessage(messages.local_only_short), meta: formatMessage(messages.local_only_long)},
     ];
   }
 

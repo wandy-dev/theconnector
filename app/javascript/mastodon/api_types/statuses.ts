@@ -14,10 +14,7 @@ export type StatusVisibility =
   | 'direct';
 
 // See app/modals/status.rb
-export type StatusFederation =
-  | 'federation_full'
-  | 'federation_limited'
-  | 'federation_local';
+export type StatusFederation = 'full' | 'limited' | 'local';
 
 export interface ApiStatusApplicationJSON {
   name: string;
@@ -95,7 +92,7 @@ export interface ApiStatusJSON {
   sensitive: boolean;
   spoiler_text?: string;
   visibility: StatusVisibility;
-  theconnector_federation: StatusFederation;
+  federation: StatusFederation;
   language: string;
   uri: string;
   url: string;

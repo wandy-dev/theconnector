@@ -84,7 +84,7 @@ const initialState = ImmutableMap({
   suggestion_token: null,
   suggestions: ImmutableList(),
   default_privacy: 'public',
-  default_federation: 'federation_full',
+  default_federation: 'full',
   default_sensitive: false,
   default_language: 'en',
   resetFileKey: Math.floor((Math.random() * 0x10000)),
@@ -229,7 +229,7 @@ const privacyPreference = (a, b) => {
 };
 
 const federationPreference = (a, b) => {
-  const order = ['federation_full', 'federation_limited', 'federation_local'];
+  const order = ['full', 'limited', 'local'];
   return order[Math.max(order.indexOf(a), order.indexOf(b), 0)];
 };
 

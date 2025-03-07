@@ -175,7 +175,7 @@ class Status < ApplicationRecord
                    thread: :account
 
   delegate :domain, to: :account, prefix: true
-  delegate :federation, to: :theconnector_attribute
+  delegate :federation, to: :theconnector_attribute, allow_nil: true
 
   REAL_TIME_WINDOW = 6.hours
 

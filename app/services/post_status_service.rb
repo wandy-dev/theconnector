@@ -76,6 +76,7 @@ class PostStatusService < BaseService
 
   def process_status!
     @status = @account.statuses.new(status_attributes)
+    create_theconnector_attribute_service.call(@status, @federation)
     process_mentions_service.call(@status, save_records: false)
     safeguard_mentions!(@status)
 
@@ -146,6 +147,10 @@ class PostStatusService < BaseService
 
   def process_mentions_service
     ProcessMentionsService.new
+  end
+
+  def create_theconnector_attribute_service
+    CreateTheconnectorAttributeService.new
   end
 
   def process_hashtags_service

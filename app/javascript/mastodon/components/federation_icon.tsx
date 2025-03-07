@@ -8,16 +8,16 @@ import type { StatusFederation } from 'mastodon/models/status';
 import { Icon } from './icon';
 
 const messages = defineMessages({
-  federation_full_short: {
-    id: 'federation.federation_full.short',
+  full_short: {
+    id: 'federation.full.short',
     defaultMessage: 'Fediverse',
   },
-  federation_local_short: {
-    id: 'federation.federation_local.short',
+  local_short: {
+    id: 'federation.local.short',
     defaultMessage: 'Home server',
   },
-  federation_limited_short: {
-    id: 'federation.federation_limited.short',
+  limited_short: {
+    id: 'federation.limited.short',
     defaultMessage: 'Wider Community',
   },
 });
@@ -28,20 +28,25 @@ export const FederationIcon: React.FC<{ federation: StatusFederation }> = ({
   const intl = useIntl();
 
   const federationIconInfo = {
-    federation_full: {
+    full: {
       icon: 'globe',
       iconComponent: PublicIcon,
-      text: intl.formatMessage(messages.federation_full_short),
+      text: intl.formatMessage(messages.full_short),
     },
-    federation_limited: {
+    limited: {
       icon: 'unlock',
       iconComponent: QuietTimeIcon,
-      text: intl.formatMessage(messages.federation_limited_short),
+      text: intl.formatMessage(messages.limited_short),
     },
-    federation_local: {
+    local: {
       icon: 'lock',
       iconComponent: LockIcon,
-      text: intl.formatMessage(messages.federation_local_short),
+      text: intl.formatMessage(messages.local_short),
+    },
+    null: {
+      icon: 'federated',
+      iconComponent: PublicIcon,
+      text: intl.formatMessage(messages.full_short),
     },
   };
 
