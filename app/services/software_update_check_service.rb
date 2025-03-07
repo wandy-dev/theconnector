@@ -12,14 +12,14 @@ class SoftwareUpdateCheckService < BaseService
 
   def clean_outdated_updates!
     SoftwareUpdate.find_each do |software_update|
-      software_update.delete if Mastodon::Version.gem_version >= software_update.gem_version
+      software_update.delete if upstream_version >= software_update.gem_version
     rescue ArgumentError
       software_update.delete
     end
   end
 
   def fetch_update_notices
-    Request.new(:get, "#{api_url}?version=#{version}").add_headers('Accept' => 'application/json', 'User-Agent' => 'Mastodon update checker').perform do |res|
+    Request.new(:get, "#{api_url}?version=#{upstream_version}").add_headers('Accept' => 'application/json', 'User-Agent' => 'Mastodon update checker').perform do |res|
       return Oj.load(res.body_with_limit, mode: :strict) if res.code == 200
     end
   rescue HTTP::Error, OpenSSL::SSL::SSLError, Oj::ParseError
@@ -80,5 +80,10 @@ class SoftwareUpdateCheckService < BaseService
         AdminMailer.with(recipient: user.account).new_software_updates.deliver_later
       end
     end
+  end
+
+  def upstream_version
+    upstream_version = Mastodon::Version.gem_version.version[0..4]
+    Gem::Version.new(upstream_version)
   end
 end
