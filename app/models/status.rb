@@ -199,6 +199,10 @@ class Status < ApplicationRecord
     attributes['local'] || uri.nil?
   end
 
+  def federated?
+    federation == 'full'
+  end
+
   def in_reply_to_local_account?
     reply? && thread&.account&.local?
   end

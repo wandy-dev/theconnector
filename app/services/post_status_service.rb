@@ -124,7 +124,7 @@ class PostStatusService < BaseService
     Trends.register!(@status) if ActiveModel::Type::Boolean.new.cast(ENV.fetch('EASY_TREND', nil))
     LinkCrawlWorker.perform_async(@status.id)
     DistributionWorker.perform_async(@status.id)
-    ActivityPub::DistributionWorker.perform_async(@status.id)
+    ActivityPub::DistributionWorker.perform_async(@status.id) if @status.federated?
     PollExpirationNotifyWorker.perform_at(@status.poll.expires_at, @status.poll.id) if @status.poll
   end
 
