@@ -2,6 +2,7 @@
 
 class CreateTheconnectorAttributeService < BaseService
   def call(status, federation)
-    status.theconnector_attribute = TheconnectorAttribute.new(federation: federation).save
+    theconnector_attribute = status.theconnector_attribute = TheconnectorAttribute.new(federation: federation)
+    theconnector_attribute.save!
   end
 end

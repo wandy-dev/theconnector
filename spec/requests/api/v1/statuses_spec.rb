@@ -245,6 +245,36 @@ RSpec.describe '/api/v1/statuses' do
           end
         end
       end
+
+      context 'when setting status federation' do
+        let(:account) { user.account }
+
+        context 'when setting federation to full' do
+          let(:params) { { status: 'Hello world', federation: 'full' } }
+
+          it 'returns HTTP 200' do
+            subject
+
+            expect(response).to have_http_status(200)
+            expect(response.content_type)
+              .to start_with('application/json')
+            expect(response.parsed_body['federation']).to eq(params[:federation])
+          end
+        end
+
+        context 'when setting federation to local' do
+          let(:params) { { status: 'Hello world', federation: 'local' } }
+
+          it 'returns HTTP 200' do
+            subject
+
+            expect(response).to have_http_status(200)
+            expect(response.content_type)
+              .to start_with('application/json')
+            expect(response.parsed_body['federation']).to eq(params[:federation])
+          end
+        end
+      end
     end
 
     describe 'DELETE /api/v1/statuses/:id' do
