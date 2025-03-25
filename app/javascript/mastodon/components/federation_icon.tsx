@@ -1,8 +1,8 @@
 import { defineMessages, useIntl } from 'react-intl';
 
+import HomeIcon from '@/material-icons/400-24px/home-fill.svg?react';
 import LockIcon from '@/material-icons/400-24px/lock.svg?react';
 import PublicIcon from '@/material-icons/400-24px/public.svg?react';
-import QuietTimeIcon from '@/material-icons/400-24px/quiet_time.svg?react';
 import type { StatusFederation } from 'mastodon/models/status';
 
 import { Icon } from './icon';
@@ -34,13 +34,13 @@ export const FederationIcon: React.FC<{ federation: StatusFederation }> = ({
       text: intl.formatMessage(messages.full_short),
     },
     limited: {
-      icon: 'unlock',
-      iconComponent: QuietTimeIcon,
+      icon: 'lock',
+      iconComponent: LockIcon,
       text: intl.formatMessage(messages.limited_short),
     },
     local: {
-      icon: 'lock',
-      iconComponent: LockIcon,
+      icon: 'home',
+      iconComponent: HomeIcon,
       text: intl.formatMessage(messages.local_short),
     },
     null: {

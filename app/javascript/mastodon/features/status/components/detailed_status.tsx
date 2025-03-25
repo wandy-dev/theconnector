@@ -254,7 +254,7 @@ export const DetailedStatus: React.FC<{
 
   const federationLink = (
     <>
-      ·<FederationIcon federation={status.get('theconnector_federation')} />
+      ·<FederationIcon federation={status.get('federation')} />
     </>
   );
 
