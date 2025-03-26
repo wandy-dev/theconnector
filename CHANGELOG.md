@@ -10,6 +10,16 @@ All notable changes to this project will be documented in this file.
 
 ## [4.3.6-theconnector-0.4.1] - 2025-03-13
 
+### Added
+
+- Add theconnector_attributes table and TheconnectorAttributes model
+
+### Fixed
+
+- Fix incorrect version number being sent to version check server
+
+## [4.3.6-theconnector-0.4.1] - 2025-03-13
+
 ### Fixed
 
 - Fix incorrect version number being sent to version check server

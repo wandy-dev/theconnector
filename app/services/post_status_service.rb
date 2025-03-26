@@ -30,6 +30,7 @@ class PostStatusService < BaseService
   # @option [Doorkeeper::Application] :application
   # @option [String] :idempotency Optional idempotency key
   # @option [Boolean] :with_rate_limit
+  # @option [String] :federation
   # @option [Enumerable] :allowed_mentions Optional array of expected mentioned account IDs, raises `UnexpectedMentionsError` if unexpected accounts end up in mentions
   # @return [Status]
   def call(account, options = {})
@@ -66,6 +67,7 @@ class PostStatusService < BaseService
     @text         = @options.delete(:spoiler_text) if @text.blank? && @options[:spoiler_text].present?
     @visibility   = @options[:visibility] || @account.user&.setting_default_privacy
     @visibility   = :unlisted if @visibility&.to_sym == :public && @account.silenced?
+    @federation   = @options[:federation]
     @scheduled_at = @options[:scheduled_at]&.to_datetime
     @scheduled_at = nil if scheduled_in_the_past?
   rescue ArgumentError
@@ -81,6 +83,7 @@ class PostStatusService < BaseService
     # the media attachments when the status is created
     ApplicationRecord.transaction do
       @status.save!
+      create_theconnector_attribute_service.call(@status, @federation)
     end
   end
 
@@ -121,7 +124,7 @@ class PostStatusService < BaseService
     Trends.register!(@status) if ActiveModel::Type::Boolean.new.cast(ENV.fetch('EASY_TREND', nil))
     LinkCrawlWorker.perform_async(@status.id)
     DistributionWorker.perform_async(@status.id)
-    ActivityPub::DistributionWorker.perform_async(@status.id)
+    ActivityPub::DistributionWorker.perform_async(@status.id) if @status.federated?
     PollExpirationNotifyWorker.perform_at(@status.poll.expires_at, @status.poll.id) if @status.poll
   end
 
@@ -144,6 +147,10 @@ class PostStatusService < BaseService
 
   def process_mentions_service
     ProcessMentionsService.new
+  end
+
+  def create_theconnector_attribute_service
+    CreateTheconnectorAttributeService.new
   end
 
   def process_hashtags_service

@@ -175,7 +175,6 @@ group :development do
   # Enhanced error message pages for development
   gem 'better_errors', '~> 2.9'
   gem 'binding_of_caller', '~> 1.0'
-  gem 'pry'
 
   # Preview mail in the browser
   gem 'letter_opener', '~> 1.8'
@@ -195,6 +194,7 @@ end
 group :development, :test do
   # Interactive Debugging tools
   gem 'debug', '~> 1.8'
+  gem 'pry'
 
   # Generate fake data values
   gem 'faker', '~> 3.2'

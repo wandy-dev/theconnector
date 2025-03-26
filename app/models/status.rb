@@ -92,6 +92,7 @@ class Status < ApplicationRecord
   has_one :status_stat, inverse_of: :status, dependent: nil
   has_one :poll, inverse_of: :status, dependent: :destroy
   has_one :trend, class_name: 'StatusTrend', inverse_of: :status, dependent: nil
+  has_one :theconnector_attribute, as: :theconnector_attributable, dependent: :destroy
 
   validates :uri, uniqueness: true, presence: true, unless: :local?
   validates :text, presence: true, unless: -> { with_media? || reblog? }
@@ -174,6 +175,7 @@ class Status < ApplicationRecord
                    thread: :account
 
   delegate :domain, to: :account, prefix: true
+  delegate :federation, to: :theconnector_attribute, allow_nil: true
 
   REAL_TIME_WINDOW = 6.hours
 
@@ -195,6 +197,10 @@ class Status < ApplicationRecord
 
   def local?
     attributes['local'] || uri.nil?
+  end
+
+  def federated?
+    federation == 'full'
   end
 
   def in_reply_to_local_account?

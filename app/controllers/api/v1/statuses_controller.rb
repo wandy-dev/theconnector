@@ -69,6 +69,7 @@ class Api::V1::StatusesController < Api::BaseController
       sensitive: status_params[:sensitive],
       spoiler_text: status_params[:spoiler_text],
       visibility: status_params[:visibility],
+      federation: status_params[:federation],
       language: status_params[:language],
       scheduled_at: status_params[:scheduled_at],
       application: doorkeeper_token.application,
@@ -157,6 +158,7 @@ class Api::V1::StatusesController < Api::BaseController
       :visibility,
       :language,
       :scheduled_at,
+      :federation,
       allowed_mentions: [],
       media_ids: [],
       media_attributes: [
