@@ -2,11 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.3.4-theconnector-1.0.0] - 2025-03-07
+
+### Added
+
+- Add theconnector_attributes table and TheconnectorAttributes model
+
 ## [4.3.6-theconnector-0.4.1] - 2025-03-13
 
 ### Fixed
 
-- Fix patch level security notices
+- Fix incorrect version number being sent to version check server
 
 ### Added
 
@@ -37,6 +43,7 @@ All notable changes to this project will be documented in this file.
 - Fix username and display name being hidden on narrow screens in moderation interface (#33064 by @ClearlyClaire)
 
 ## [4.3.4] - 2025-02-27
+>>>>>>> v4.3.6-theconnector-0.4.1
 
 ### Security
 
