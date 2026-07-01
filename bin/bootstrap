@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+lappverk checkout $1
+WORKTREE="$(lappverk path worktree "$1")"
+CACHE="$HOME/.cache/mastodon-bundle-vendor"
+THECONNECTORROOT="$(pwd)"
+pushd "$WORKTREE"
+
+mkdir -p vendor "$CACHE"
+ln -sfn "$CACHE" vendor/bundle
+
+bundle config set --local path 'vendor/bundle'
+bundle config build.charlock_holmes --with-icu-dir=/usr --with-cxxflags=-std=c++17
+
+ln -sf $THECONNECTORROOT/env/env.development .env.development
+ln -sf $THECONNECTORROOT/env/database.yml config/database.yml
+
+set -a
+source .env.development
+set +a
+
+rbenv install -s
+bundle install
+yarn install
+bin/rails assets:precompile
+bin/rails db:prepare

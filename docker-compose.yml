@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:14-alpine
+    volumes:
+      - mastodon-db:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - mastodon-redis:/data
+    ports: ["6379:6379"]
+
+volumes:
+  mastodon-db:
+  mastodon-redis:

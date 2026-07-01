@@ -1,0 +1,42 @@
+#!/bin/bash
+
+is_sourced() {
+  [[ "${BASH_SOURCE[0]}" != "${0}" ]]
+}
+
+sub_edit() {
+  local path
+  path="$(lappverk path worktree "$1")" || {
+    echo "Error: failed to resolve worktree path for '$1'" >&2
+    return 1
+  }
+  cd "$path" || {
+    echo "Error: worktree directory '$path' does not exist (run 'lappverk checkout $1' first)" >&2
+    return 1
+  }
+}
+
+error() {
+  echo "$*" >&2
+}
+
+command=${1:-}
+shift 2>/dev/null || true
+
+if [ -z "$command" ]; then
+  echo "Usage: source $0 <command> [args...]" >&2
+  if is_sourced; then return 1; else exit 1; fi
+fi
+
+if [ $# -eq 0 ]; then
+  "sub_${command}"
+else
+  for arg in "$@"; do
+    "sub_${command}" "$arg"
+    ret=$?
+    if [ $ret = 127 ]; then
+      error "Error: '$command' is not a known command."
+      if is_sourced; then return 1; else exit 1; fi
+    fi
+  done
+fi

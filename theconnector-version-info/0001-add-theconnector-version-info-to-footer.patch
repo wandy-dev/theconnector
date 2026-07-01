@@ -1,0 +1,142 @@
+From 379640b93ee8001d94af562485821d41255bd8e8 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Wed, 1 Jul 2026 15:10:36 -0400
+Subject: add theconnector version info to footer
+
+---
+ .../features/ui/components/link_footer.tsx    |  7 +++++
+ app/javascript/mastodon/initial_state.ts      |  2 ++
+ app/presenters/instance_presenter.rb          |  6 +++-
+ app/serializers/initial_state_serializer.rb   |  1 +
+ config/application.rb                         |  1 +
+ lib/theconnector/version.rb                   | 28 +++++++++++++++++++
+ 6 files changed, 44 insertions(+), 1 deletion(-)
+ create mode 100644 lib/theconnector/version.rb
+
+diff --git a/app/javascript/mastodon/features/ui/components/link_footer.tsx b/app/javascript/mastodon/features/ui/components/link_footer.tsx
+index 2b73bad15..db0f5c388 100644
+--- a/app/javascript/mastodon/features/ui/components/link_footer.tsx
++++ b/app/javascript/mastodon/features/ui/components/link_footer.tsx
+@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
+ import {
+   domain,
+   version,
++  theconnector_version,
+   source_url,
+   statusPageUrl,
+   profile_directory as canProfileDirectory,
+@@ -117,6 +118,12 @@ export const LinkFooter: React.FC<{
+           <li className={classes.version}>v{version}</li>
+         </ul>
+       </section>
++      <section>
++        <h2 className={classes.heading}>theconnector:</h2>
++        <ul className={classes.list}>
++          <li className={classes.version}>v{theconnector_version}</li>
++        </ul>
++      </section>
+     </footer>
+   );
+ };
+diff --git a/app/javascript/mastodon/initial_state.ts b/app/javascript/mastodon/initial_state.ts
+index 29bad1d67..365b4553e 100644
+--- a/app/javascript/mastodon/initial_state.ts
++++ b/app/javascript/mastodon/initial_state.ts
+@@ -44,6 +44,7 @@ interface InitialStateMeta {
+   use_blurhash: boolean;
+   use_pending_items?: boolean;
+   version: string;
++  theconnector_version: string;
+   sso_redirect: string;
+   status_page_url: string;
+   terms_of_service_enabled: boolean;
+@@ -142,6 +143,7 @@ export const landingPage = getMeta('landing_page');
+ export const useBlurhash = getMeta('use_blurhash');
+ export const usePendingItems = getMeta('use_pending_items');
+ export const version = getMeta('version');
++export const theconnector_version = getMeta('theconnector_version');
+ export const criticalUpdatesPending = initialState?.critical_updates_pending;
+ export const statusPageUrl = getMeta('status_page_url');
+ export const sso_redirect = getMeta('sso_redirect');
+diff --git a/app/presenters/instance_presenter.rb b/app/presenters/instance_presenter.rb
+index 6923f565e..ce80435b1 100644
+--- a/app/presenters/instance_presenter.rb
++++ b/app/presenters/instance_presenter.rb
+@@ -2,7 +2,7 @@
+ 
+ class InstancePresenter < ActiveModelSerializers::Model
+   attributes :domain, :title, :version, :source_url,
+-             :description, :languages, :rules, :contact
++             :description, :languages, :rules, :contact, :theconnector_version
+ 
+   class ContactPresenter < ActiveModelSerializers::Model
+     attributes :email, :account
+@@ -70,6 +70,10 @@ class InstancePresenter < ActiveModelSerializers::Model
+     Mastodon::Version.to_s
+   end
+ 
++  def theconnector_version
++    Theconnector::Version.to_s
++  end
++
+   def source_url
+     Mastodon::Version.source_url
+   end
+diff --git a/app/serializers/initial_state_serializer.rb b/app/serializers/initial_state_serializer.rb
+index a8e4b1d7f..c3fd852ff 100644
+--- a/app/serializers/initial_state_serializer.rb
++++ b/app/serializers/initial_state_serializer.rb
+@@ -127,6 +127,7 @@ class InitialStateSerializer < ActiveModel::Serializer
+       landing_page: Setting.landing_page,
+       trends_enabled: Setting.trends,
+       version: instance_presenter.version,
++      theconnector_version: instance_presenter.theconnector_version,
+       terms_of_service_enabled: TermsOfService.current.present?,
+       local_live_feed_access: Setting.local_live_feed_access,
+       remote_live_feed_access: Setting.remote_live_feed_access,
+diff --git a/config/application.rb b/config/application.rb
+index 09fe38065..9a38d7956 100644
+--- a/config/application.rb
++++ b/config/application.rb
+@@ -39,6 +39,7 @@ require_relative '../lib/mastodon/email_configuration_helper'
+ require_relative '../lib/mastodon/feature'
+ require_relative '../lib/mastodon/snowflake'
+ require_relative '../lib/mastodon/version'
++require_relative '../lib/theconnector/version'
+ require_relative '../lib/devise/strategies/two_factor_ldap_authenticatable'
+ require_relative '../lib/devise/strategies/two_factor_pam_authenticatable'
+ require_relative '../lib/elasticsearch/client_extensions'
+diff --git a/lib/theconnector/version.rb b/lib/theconnector/version.rb
+new file mode 100644
+index 000000000..e8efb7991
+--- /dev/null
++++ b/lib/theconnector/version.rb
+@@ -0,0 +1,28 @@
++# frozen_string_literal: true
++
++module Theconnector
++  module Version
++    module_function
++
++    def major
++      0
++    end
++
++    def minor
++      1
++    end
++
++    def patch
++      0
++    end
++
++    def to_a
++      [major, minor, patch].compact
++    end
++
++    def to_s
++      components = [to_a.join('.')]
++      components.join
++    end
++  end
++end
