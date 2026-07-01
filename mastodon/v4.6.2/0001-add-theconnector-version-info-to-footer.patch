@@ -1,6 +1,6 @@
-From 379640b93ee8001d94af562485821d41255bd8e8 Mon Sep 17 00:00:00 2001
+From fa17ae1f6bdc71cf787c3d22b787026356c50a85 Mon Sep 17 00:00:00 2001
 From: wandy-dev <hello@wandy.dev>
-Date: Wed, 1 Jul 2026 15:10:36 -0400
+Date: Wed, 1 Jul 2026 15:51:46 -0400
 Subject: add theconnector version info to footer
 
 ---
