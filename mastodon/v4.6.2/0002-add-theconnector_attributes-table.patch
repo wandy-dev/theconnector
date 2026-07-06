@@ -47,7 +47,7 @@ index c99e8a62a..3f9d0abc6 100644
  
 +  create_table "theconnector_attributes", force: :cascade do |t|
 +    t.datetime "created_at", null: false
-+    t.jsonb "metadata"
++    t.text "metadata"
 +    t.bigint "theconnector_attributable_id", null: false
 +    t.string "theconnector_attributable_type", null: false
 +    t.datetime "updated_at", null: false

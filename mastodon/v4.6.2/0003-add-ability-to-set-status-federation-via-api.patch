@@ -1,0 +1,157 @@
+From 2b8c736951beee73f8613c702bbcea13ef035809 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Fri, 3 Jul 2026 21:40:37 -0400
+Subject: add ability to set status federation via api
+
+---
+ app/controllers/api/v1/statuses_controller.rb |  2 ++
+ app/models/status.rb                          |  2 ++
+ app/models/theconnector_attribute.rb          | 20 +++++++++++++++++++
+ app/services/post_status_service.rb           |  9 ++++++++-
+ ...01200707_create_theconnector_attributes.rb |  3 ++-
+ db/schema.rb                                  |  2 +-
+ 6 files changed, 35 insertions(+), 3 deletions(-)
+ create mode 100644 app/models/theconnector_attribute.rb
+
+diff --git a/app/controllers/api/v1/statuses_controller.rb b/app/controllers/api/v1/statuses_controller.rb
+index d3f742d62..b42a0e181 100644
+--- a/app/controllers/api/v1/statuses_controller.rb
++++ b/app/controllers/api/v1/statuses_controller.rb
+@@ -38,6 +38,7 @@ class Api::V1::StatusesController < Api::BaseController
+       sensitive: status_params[:sensitive],
+       spoiler_text: status_params[:spoiler_text],
+       visibility: status_params[:visibility],
++      federation: status_params[:federation],
+       language: status_params[:language],
+       scheduled_at: status_params[:scheduled_at],
+       application: doorkeeper_token.application,
+@@ -139,6 +140,7 @@ class Api::V1::StatusesController < Api::BaseController
+       :sensitive,
+       :spoiler_text,
+       :visibility,
++      :federation,
+       :language,
+       :scheduled_at,
+       allowed_mentions: [],
+diff --git a/app/models/status.rb b/app/models/status.rb
+index ef41caca0..2dd9fa44f 100644
+--- a/app/models/status.rb
++++ b/app/models/status.rb
+@@ -116,6 +116,7 @@ class Status < ApplicationRecord
+   has_one :poll, inverse_of: :status, dependent: :destroy
+   has_one :trend, class_name: 'StatusTrend', inverse_of: :status, dependent: nil
+   has_one :quote, inverse_of: :status, dependent: :destroy
++  has_one :theconnector_attribute, as: :theconnector_attributable, dependent: :destroy
+ 
+   validates :uri, uniqueness: true, presence: true, unless: :local?
+   validates :text, presence: true, unless: -> { with_media? || reblog? || with_quote? }
+@@ -184,6 +185,7 @@ class Status < ApplicationRecord
+   )
+ 
+   delegate :domain, :indexable?, to: :account, prefix: true
++  delegate :federation_full?, to: :theconnector_attribute
+ 
+   REAL_TIME_WINDOW = 6.hours
+ 
+diff --git a/app/models/theconnector_attribute.rb b/app/models/theconnector_attribute.rb
+new file mode 100644
+index 000000000..808c4c1e6
+--- /dev/null
++++ b/app/models/theconnector_attribute.rb
+@@ -0,0 +1,20 @@
++# frozen_string_literal: true
++
++# == Schema Information
++#
++# Table name: theconnector_attributes
++#
++#  id                             :bigint(8)        not null, primary key
++#  metadata                       :text
++#  theconnector_attributable_type :string           not null
++#  created_at                     :datetime         not null
++#  updated_at                     :datetime         not null
++#  theconnector_attributable_id   :bigint(8)        not null
++#
++class TheconnectorAttribute < ApplicationRecord
++  belongs_to :theconnector_attributable, polymorphic: true
++
++  def federation_full?
++    metadata['federation'] == 'full'
++  end
++end
+diff --git a/app/services/post_status_service.rb b/app/services/post_status_service.rb
+index da1053595..08ea5d468 100644
+--- a/app/services/post_status_service.rb
++++ b/app/services/post_status_service.rb
+@@ -29,6 +29,7 @@ class PostStatusService < BaseService
+   # @option [String] :quote_approval_policy Approval policy for quotes, one of `public`, `followers` or `nobody`
+   # @option [Boolean] :sensitive
+   # @option [String] :visibility
++  # @option [String] :federation
+   # @option [String] :spoiler_text
+   # @option [String] :language
+   # @option [String] :scheduled_at
+@@ -45,6 +46,7 @@ class PostStatusService < BaseService
+     @text        = @options[:text] || ''
+     @in_reply_to = @options[:thread]
+     @quoted_status = @options[:quoted_status]
++    @federation = @options[:federation]
+ 
+     with_idempotency do
+       validate_media!
+@@ -122,6 +124,10 @@ class PostStatusService < BaseService
+     ProcessLinksService.new.call(status)
+   end
+ 
++  def attach_theconnector_attribute!(status)
++    status.theconnector_attribute = TheconnectorAttribute.create(metadata: { federation: @federation })
++  end
++
+   def safeguard_mentions!(status)
+     return if @options[:allowed_mentions].nil?
+ 
+@@ -160,12 +166,13 @@ class PostStatusService < BaseService
+   end
+ 
+   def postprocess_status!
++    attach_theconnector_attribute!(@status)
+     process_hashtags_service.call(@status)
+     Trends.tags.register(@status)
+     LinkCrawlWorker.perform_async(@status.id)
+     DistributionWorker.perform_async(@status.id)
+     process_email_subscriptions!
+-    ActivityPub::DistributionWorker.perform_async(@status.id)
++    ActivityPub::DistributionWorker.perform_async(@status.id) if @status.federation_full?
+     PollExpirationNotifyWorker.perform_at(@status.poll.expires_at, @status.poll.id) if @status.poll
+     ActivityPub::QuoteRequestWorker.perform_async(@status.quote.id) if @status.quote&.quoted_status.present? && !@status.quote&.quoted_status&.local?
+   end
+diff --git a/db/migrate/20260701200707_create_theconnector_attributes.rb b/db/migrate/20260701200707_create_theconnector_attributes.rb
+index 5aa503b17..99e9421fe 100644
+--- a/db/migrate/20260701200707_create_theconnector_attributes.rb
++++ b/db/migrate/20260701200707_create_theconnector_attributes.rb
+@@ -3,10 +3,11 @@
+ class CreateTheconnectorAttributes < ActiveRecord::Migration[8.1]
+   def change
+     create_table :theconnector_attributes do |t|
+-      t.jsonb :metadata
++      t.jsonb :metadata, null: false, default: '{}'
+       t.references :theconnector_attributable, polymorphic: true, null: false
+ 
+       t.timestamps
+     end
++    add_index :theconnector_attributes, :metadata, using: :gin
+   end
+ end
+diff --git a/db/schema.rb b/db/schema.rb
+index 3f9d0abc6..cc88406fd 100644
+--- a/db/schema.rb
++++ b/db/schema.rb
+@@ -1315,7 +1315,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_200707) do
+ 
+   create_table "theconnector_attributes", force: :cascade do |t|
+     t.datetime "created_at", null: false
+-    t.text "metadata"
++    t.jsonb "metadata", null: false, default: '{}'
+     t.bigint "theconnector_attributable_id", null: false
+     t.string "theconnector_attributable_type", null: false
+     t.datetime "updated_at", null: false
