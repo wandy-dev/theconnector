@@ -1,0 +1,348 @@
+From c0f7591e1d23e85d1615fee02db3f4b9a5e227a5 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Fri, 3 Jul 2026 22:32:57 -0400
+Subject: add ability to set status federation via visibility modal
+
+---
+ app/javascript/mastodon/actions/compose.js    |  1 +
+ .../mastodon/actions/compose_typed.ts         |  5 ++
+ app/javascript/mastodon/api/statuses.ts       | 13 +++
+ .../mastodon/api_types/federation.ts          | 12 +++
+ .../compose/components/visibility_button.tsx  | 12 ++-
+ .../ui/components/visibility_modal.tsx        | 87 ++++++++++++++++++-
+ app/javascript/mastodon/locales/en.json       |  3 +
+ app/javascript/mastodon/reducers/compose.js   |  5 ++
+ 8 files changed, 134 insertions(+), 4 deletions(-)
+ create mode 100644 app/javascript/mastodon/api_types/federation.ts
+
+diff --git a/app/javascript/mastodon/actions/compose.js b/app/javascript/mastodon/actions/compose.js
+index 1e533b327..772649c96 100644
+--- a/app/javascript/mastodon/actions/compose.js
++++ b/app/javascript/mastodon/actions/compose.js
+@@ -245,6 +245,7 @@ export function submitCompose(successCallback) {
+         language: getState().getIn(['compose', 'language']),
+         quoted_status_id: getState().getIn(['compose', 'quoted_status_id']),
+         quote_approval_policy: visibility === 'private' || visibility === 'direct' ? 'nobody' : getState().getIn(['compose', 'quote_policy']),
++        federation: getState().getIn(['compose', 'federation_policy']),
+       },
+       headers: {
+         'Idempotency-Key': getState().getIn(['compose', 'idempotencyKey']),
+diff --git a/app/javascript/mastodon/actions/compose_typed.ts b/app/javascript/mastodon/actions/compose_typed.ts
+index 310ac5f84..6291570a3 100644
+--- a/app/javascript/mastodon/actions/compose_typed.ts
++++ b/app/javascript/mastodon/actions/compose_typed.ts
+@@ -12,6 +12,7 @@ import {
+   createAppThunk,
+ } from 'mastodon/store/typed_functions';
+ 
++import type { ApiFederationPolicy } from '../api_types/federation';
+ import type { ApiQuotePolicy } from '../api_types/quotes';
+ import type { Status, StatusVisibility } from '../models/status';
+ import type { RootState } from '../store';
+@@ -275,6 +276,10 @@ export const setComposeQuotePolicy = createAction<ApiQuotePolicy>(
+   'compose/setQuotePolicy',
+ );
+ 
++export const setComposeFederationPolicy = createAction<ApiFederationPolicy>(
++  'compose/setFederationPolicy',
++);
++
+ export const setDragUploadEnabled = createAction<boolean>(
+   'compose/setDragUploadEnabled',
+ );
+diff --git a/app/javascript/mastodon/api/statuses.ts b/app/javascript/mastodon/api/statuses.ts
+index 123f2759d..7be8d4801 100644
+--- a/app/javascript/mastodon/api/statuses.ts
++++ b/app/javascript/mastodon/api/statuses.ts
+@@ -4,6 +4,7 @@ import type {
+   ApiStatusJSON,
+ } from 'mastodon/api_types/statuses';
+ 
++import type { ApiFederationPolicy } from '../api_types/federation';
+ import type { ApiQuotePolicy } from '../api_types/quotes';
+ 
+ export const apiGetContext = async (statusId: string) => {
+@@ -29,3 +30,15 @@ export const apiSetQuotePolicy = async (
+     },
+   );
+ };
++
++export const apiSetFederationPolicy = async (
++  statusId: string,
++  policy: ApiFederationPolicy,
++) => {
++  return apiRequestPut<ApiStatusJSON>(
++    `v1/statuses/${statusId}/federation_policy`,
++    {
++      federation_policy: policy,
++    },
++  );
++};
+diff --git a/app/javascript/mastodon/api_types/federation.ts b/app/javascript/mastodon/api_types/federation.ts
+new file mode 100644
+index 000000000..e91a6fda0
+--- /dev/null
++++ b/app/javascript/mastodon/api_types/federation.ts
+@@ -0,0 +1,12 @@
++export type ApiFederationPolicy = 'full' | 'limited' | 'unsupported_policy';
++
++export interface ApiFederationPolicyJSON {
++  automatic: ApiFederationPolicy[];
++  manual: ApiFederationPolicy[];
++}
++
++export function isFederationPolicy(
++  policy: string,
++): policy is ApiFederationPolicy {
++  return ['full', 'limited'].includes(policy);
++}
+diff --git a/app/javascript/mastodon/features/compose/components/visibility_button.tsx b/app/javascript/mastodon/features/compose/components/visibility_button.tsx
+index d93940502..a9ec5e4fc 100644
+--- a/app/javascript/mastodon/features/compose/components/visibility_button.tsx
++++ b/app/javascript/mastodon/features/compose/components/visibility_button.tsx
+@@ -8,8 +8,10 @@ import classNames from 'classnames';
+ import {
+   changeComposeVisibility,
+   setComposeQuotePolicy,
++  setComposeFederationPolicy,
+ } from '@/mastodon/actions/compose_typed';
+ import { openModal } from '@/mastodon/actions/modal';
++import type { ApiFederationPolicy } from '@/mastodon/api_types/federation';
+ import type { ApiQuotePolicy } from '@/mastodon/api_types/quotes';
+ import type { StatusVisibility } from '@/mastodon/api_types/statuses';
+ import { Icon } from '@/mastodon/components/icon';
+@@ -82,6 +84,9 @@ const PrivacyModalButton: FC<PrivacyDropdownProps> = ({ disabled = false }) => {
+   const visibility = useAppSelector(
+     (state) => state.compose.get('privacy') as StatusVisibility,
+   );
++  const federationPolicy = useAppSelector(
++    (state) => state.compose.get('federation_policy') as ApiFederationPolicy,
++  );
+ 
+   const { icon, iconComponent } = useMemo(() => {
+     const option = visibilityOptions[visibility];
+@@ -112,15 +117,18 @@ const PrivacyModalButton: FC<PrivacyDropdownProps> = ({ disabled = false }) => {
+   const dispatch = useAppDispatch();
+ 
+   const handleChange: VisibilityModalCallback = useCallback(
+-    (newVisibility, newQuotePolicy) => {
++    (newVisibility, newQuotePolicy, newFederationPolicy) => {
+       if (newVisibility !== visibility) {
+         dispatch(changeComposeVisibility(newVisibility));
+       }
+       if (newQuotePolicy !== quotePolicy) {
+         dispatch(setComposeQuotePolicy(newQuotePolicy));
+       }
++      if (newFederationPolicy !== federationPolicy) {
++        dispatch(setComposeFederationPolicy(newFederationPolicy));
++      }
+     },
+-    [dispatch, quotePolicy, visibility],
++    [dispatch, quotePolicy, visibility, federationPolicy],
+   );
+ 
+   const handleOpen = useCallback(() => {
+diff --git a/app/javascript/mastodon/features/ui/components/visibility_modal.tsx b/app/javascript/mastodon/features/ui/components/visibility_modal.tsx
+index b43af7c6a..9e5d54d3b 100644
+--- a/app/javascript/mastodon/features/ui/components/visibility_modal.tsx
++++ b/app/javascript/mastodon/features/ui/components/visibility_modal.tsx
+@@ -5,6 +5,8 @@ import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
+ 
+ import classNames from 'classnames';
+ 
++import type { ApiFederationPolicy } from '@/mastodon/api_types/federation';
++import { isFederationPolicy } from '@/mastodon/api_types/federation';
+ import type { ApiQuotePolicy } from '@/mastodon/api_types/quotes';
+ import { isQuotePolicy } from '@/mastodon/api_types/quotes';
+ import { isStatusVisibility } from '@/mastodon/api_types/statuses';
+@@ -42,11 +44,20 @@ const messages = defineMessages({
+     id: 'visibility_modal.quote_nobody',
+     defaultMessage: 'Just me',
+   },
++  federationFull: {
++    id: 'visibility_modal.federation_full',
++    defaultMessage: 'Full',
++  },
++  federationLimited: {
++    id: 'visibility_modal.federation_limited',
++    defaultMessage: 'Instance only',
++  },
+ });
+ 
+ export type VisibilityModalCallback = (
+   visibility: StatusVisibility,
+   quotePolicy: ApiQuotePolicy,
++  federationPolicy: ApiFederationPolicy,
+ ) => void;
+ 
+ interface VisibilityModalProps extends BaseConfirmationModalProps {
+@@ -90,6 +101,13 @@ const selectStatusPolicy = createAppSelector(
+   },
+ );
+ 
++const selectFederationPolicy = createAppSelector(
++  [(state) => state.compose.get('federation_policy') as ApiFederationPolicy],
++  (composeFederationPolicy) => {
++    return composeFederationPolicy;
++  },
++);
++
+ const selectDisablePublicVisibilities = createAppSelector(
+   [
+     (state) => state.statuses,
+@@ -122,9 +140,15 @@ export const VisibilityModal: FC<VisibilityModalProps> = forwardRef(
+     const currentQuotePolicy = useAppSelector((state) =>
+       selectStatusPolicy(state, statusId),
+     );
++    const currentFederationPolicy = useAppSelector((state) =>
++      selectFederationPolicy(state),
++    );
+ 
+     const [visibility, setVisibility] = useState(currentVisibility);
+     const [quotePolicy, setQuotePolicy] = useState(currentQuotePolicy);
++    const [federationPolicy, setFederationPolicy] = useState(
++      currentFederationPolicy,
++    );
+ 
+     const disableVisibility = !!statusId;
+     const disableQuotePolicy =
+@@ -187,6 +211,17 @@ export const VisibilityModal: FC<VisibilityModalProps> = forwardRef(
+       [intl],
+     );
+ 
++    const federationItems = useMemo<SelectItem<ApiFederationPolicy>[]>(
++      () => [
++        { value: 'full', text: intl.formatMessage(messages.federationFull) },
++        {
++          value: 'limited',
++          text: intl.formatMessage(messages.federationLimited),
++        },
++      ],
++      [intl],
++    );
++
+     const handleVisibilityChange = useCallback((value: string) => {
+       if (isStatusVisibility(value)) {
+         setVisibility(value);
+@@ -197,16 +232,23 @@ export const VisibilityModal: FC<VisibilityModalProps> = forwardRef(
+         setQuotePolicy(value);
+       }
+     }, []);
++    const handleFederationPolicyChange = useCallback((value: string) => {
++      if (isFederationPolicy(value)) {
++        setFederationPolicy(value);
++      }
++    }, []);
+     const handleSave = useCallback(() => {
+-      onChange(visibility, quotePolicy);
++      onChange(visibility, quotePolicy, federationPolicy);
+       onClose();
+-    }, [onChange, onClose, visibility, quotePolicy]);
++    }, [onChange, onClose, visibility, quotePolicy, federationPolicy]);
+ 
+     const uniqueId = useId();
+     const visibilityLabelId = `${uniqueId}-visibility-label`;
+     const visibilityDescriptionId = `${uniqueId}-visibility-desc`;
+     const quoteLabelId = `${uniqueId}-quote-label`;
++    const federationLabelId = `${uniqueId}-federation-label`;
+     const quoteDescriptionId = `${uniqueId}-quote-desc`;
++    const federationDescriptionId = `${uniqueId}-federation-desc`;
+ 
+     return (
+       <div className='modal-root__modal dialog-modal visibility-modal'>
+@@ -335,6 +377,33 @@ export const VisibilityModal: FC<VisibilityModalProps> = forwardRef(
+                 />
+               </div>
+             )}
++
++            <div className={classNames('visibility-dropdown')}>
++              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
++              <label
++                className='visibility-dropdown__label'
++                id={federationLabelId}
++              >
++                <FormattedMessage
++                  id='visibility_modal.federation_label'
++                  defaultMessage='Federation'
++                />
++              </label>
++
++              <Dropdown
++                items={federationItems}
++                current={federationPolicy}
++                onChange={handleFederationPolicyChange}
++                labelId={federationLabelId}
++                descriptionId={federationDescriptionId}
++                classPrefix='visibility-dropdown'
++              />
++              <FederationPolicyHelper
++                policy={federationPolicy}
++                className='visibility-dropdown__helper'
++                id={federationDescriptionId}
++              />
++            </div>
+           </div>
+           <div className='dialog-modal__content__actions'>
+             <Button onClick={onClose} secondary>
+@@ -398,3 +467,17 @@ const QuotePolicyHelper: FC<
+ 
+   return <p {...otherProps}>{hintText}</p>;
+ };
++
++const FederationPolicyHelper: FC<
++  {
++    policy: ApiFederationPolicy;
++  } & React.ComponentPropsWithoutRef<'p'>
++> = ({ policy, ...otherProps }) => {
++  let hintText: React.ReactElement | undefined;
++
++  if (!hintText) {
++    return null;
++  }
++
++  return <p {...otherProps}>{hintText}</p>;
++};
+diff --git a/app/javascript/mastodon/locales/en.json b/app/javascript/mastodon/locales/en.json
+index 508b05408..0b5c19bec 100644
+--- a/app/javascript/mastodon/locales/en.json
++++ b/app/javascript/mastodon/locales/en.json
+@@ -1372,6 +1372,9 @@
+   "visibility_modal.button_title": "Set visibility",
+   "visibility_modal.direct_quote_warning.text": "If you save the current settings, the embedded quote will be converted to a link.",
+   "visibility_modal.direct_quote_warning.title": "Quotes can't be embedded in private mentions",
++  "visibility_modal.federation_full": "Full",
++  "visibility_modal.federation_label": "Federation",
++  "visibility_modal.federation_limited": "Instance only",
+   "visibility_modal.header": "Visibility and interaction",
+   "visibility_modal.helper.direct_quoting": "Private mentions authored on Mastodon can't be quoted by others.",
+   "visibility_modal.helper.privacy_editing": "Visibility can't be changed after a post is published.",
+diff --git a/app/javascript/mastodon/reducers/compose.js b/app/javascript/mastodon/reducers/compose.js
+index ce9ef9cbd..cc2ce92cd 100644
+--- a/app/javascript/mastodon/reducers/compose.js
++++ b/app/javascript/mastodon/reducers/compose.js
+@@ -6,6 +6,7 @@ import {
+   quoteCompose,
+   quoteComposeCancel,
+   setComposeQuotePolicy,
++  setComposeFederationPolicy,
+   pasteLinkCompose,
+   cancelPasteLinkCompose,
+   setDragUploadEnabled,
+@@ -97,6 +98,8 @@ const initialState = ImmutableMap({
+   quoted_status_id: null,
+   quote_policy: 'public',
+   default_quote_policy: 'public', // Set in hydration.
++  federation_policy: 'full',
++  default_federation_policy: 'full', // Set in hydration.
+   fetching_link: null,
+ });
+ 
+@@ -360,6 +363,8 @@ export const composeReducer = (state = initialState, action) => {
+     return state.set('quoted_status_id', null);
+   } else if (setComposeQuotePolicy.match(action)) {
+     return state.set('quote_policy', action.payload);
++  } else if (setComposeFederationPolicy.match(action)) {
++    return state.set('federation_policy', action.payload);
+   } else if (pasteLinkCompose.pending.match(action)) {
+     return state.set('fetching_link', action.meta.requestId);
+   } else if (pasteLinkCompose.fulfilled.match(action) || pasteLinkCompose.rejected.match(action)) {

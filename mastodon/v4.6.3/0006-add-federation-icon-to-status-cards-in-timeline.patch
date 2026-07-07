@@ -1,0 +1,152 @@
+From fe07085922fff57597cab2c054263ccb944f7108 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 6 Jul 2026 15:53:29 -0400
+Subject: add federation icon to status cards in timeline
+
+---
+ app/javascript/mastodon/api_types/statuses.ts |  6 +++
+ .../mastodon/components/federation_icon.tsx   | 44 +++++++++++++++++++
+ .../mastodon/components/status/header.tsx     | 17 ++++++-
+ app/javascript/mastodon/locales/en.json       |  2 +
+ app/javascript/mastodon/models/status.ts      |  1 +
+ 5 files changed, 69 insertions(+), 1 deletion(-)
+ create mode 100644 app/javascript/mastodon/components/federation_icon.tsx
+
+diff --git a/app/javascript/mastodon/api_types/statuses.ts b/app/javascript/mastodon/api_types/statuses.ts
+index 77b937fd1..1b5bf9ef0 100644
+--- a/app/javascript/mastodon/api_types/statuses.ts
++++ b/app/javascript/mastodon/api_types/statuses.ts
+@@ -142,3 +142,9 @@ export function isStatusVisibility(
+ ): visibility is StatusVisibility {
+   return ['public', 'unlisted', 'private', 'direct'].includes(visibility);
+ }
++
++export function isStatusFederation(
++  federation: string,
++): federation is StatusFederation {
++  return ['full', 'limited'].includes(federation);
++}
+diff --git a/app/javascript/mastodon/components/federation_icon.tsx b/app/javascript/mastodon/components/federation_icon.tsx
+new file mode 100644
+index 000000000..01668a35c
+--- /dev/null
++++ b/app/javascript/mastodon/components/federation_icon.tsx
+@@ -0,0 +1,44 @@
++import { defineMessages, useIntl } from 'react-intl';
++
++import LockIcon from '@/material-icons/400-24px/lock.svg?react';
++import PublicIcon from '@/material-icons/400-24px/public.svg?react';
++import type { StatusFederation } from 'mastodon/models/status';
++
++import { Icon } from './icon';
++
++const messages = defineMessages({
++  full_short: { id: 'federation.full.short', defaultMessage: 'Full' },
++  limited_short: {
++    id: 'federation.limited.short',
++    defaultMessage: 'Instance Only',
++  },
++});
++
++export const FederationIcon: React.FC<{ federation: StatusFederation }> = ({
++  federation,
++}) => {
++  const intl = useIntl();
++
++  const federationIconInfo = {
++    full: {
++      icon: 'globe',
++      iconComponent: PublicIcon,
++      text: intl.formatMessage(messages.full_short),
++    },
++    limited: {
++      icon: 'lock',
++      iconComponent: LockIcon,
++      text: intl.formatMessage(messages.limited_short),
++    },
++  };
++
++  const federationIcon = federationIconInfo[federation];
++
++  return (
++    <Icon
++      id={federationIcon.icon}
++      icon={federationIcon.iconComponent}
++      aria-label={federationIcon.text}
++    />
++  );
++};
+diff --git a/app/javascript/mastodon/components/status/header.tsx b/app/javascript/mastodon/components/status/header.tsx
+index 1ce5c4a36..848ce23c8 100644
+--- a/app/javascript/mastodon/components/status/header.tsx
++++ b/app/javascript/mastodon/components/status/header.tsx
+@@ -5,7 +5,7 @@ import { defineMessage, useIntl } from 'react-intl';
+ import classNames from 'classnames';
+ import { Link } from 'react-router-dom';
+ 
+-import { isStatusVisibility } from '@/mastodon/api_types/statuses';
++import { isStatusVisibility , isStatusFederation } from '@/mastodon/api_types/statuses';
+ import type { Account } from '@/mastodon/models/account';
+ import type { Status } from '@/mastodon/models/status';
+ 
+@@ -13,6 +13,7 @@ import { Avatar } from '../avatar';
+ import { AvatarOverlay } from '../avatar_overlay';
+ import type { DisplayNameProps } from '../display_name';
+ import { LinkedDisplayName } from '../display_name';
++import { FederationIcon } from '../federation_icon';
+ import { RelativeTimestamp } from '../relative_timestamp';
+ import { VisibilityIcon } from '../visibility_icon';
+ 
+@@ -65,6 +66,7 @@ export const StatusHeader: FC<StatusHeaderProps> = ({
+         to={`/@${statusAccount?.acct}/${status.get('id') as string}`}
+         className='status__relative-time'
+       >
++        <StatusFederation federation={status.get('federation')} />
+         <StatusVisibility visibility={status.get('visibility')} />
+         <RelativeTimestamp timestamp={status.get('created_at') as string} />
+         {editedAt && <StatusEditedAt editedAt={editedAt} />}
+@@ -75,6 +77,19 @@ export const StatusHeader: FC<StatusHeaderProps> = ({
+   );
+ };
+ 
++export const StatusFederation: FC<{ federation: unknown }> = ({
++  federation,
++}) => {
++  if (typeof federation !== 'string' || !isStatusFederation(federation)) {
++    return null;
++  }
++  return (
++    <span className='status__visibility-icon'>
++      <FederationIcon federation={federation} />
++    </span>
++  );
++};
++
+ export const StatusVisibility: FC<{ visibility: unknown }> = ({
+   visibility,
+ }) => {
+diff --git a/app/javascript/mastodon/locales/en.json b/app/javascript/mastodon/locales/en.json
+index 0b5c19bec..76ce80794 100644
+--- a/app/javascript/mastodon/locales/en.json
++++ b/app/javascript/mastodon/locales/en.json
+@@ -688,6 +688,8 @@
+   "featured_tags.suggestions.add": "Add",
+   "featured_tags.suggestions.added": "Manage your featured hashtags at any time under <link>Edit Profile > Featured hashtags</link>.",
+   "featured_tags.suggestions.dismiss": "No thanks",
++  "federation.full.short": "Full",
++  "federation.limited.short": "Instance Only",
+   "filter_modal.added.context_mismatch_explanation": "This filter category does not apply to the context in which you have accessed this post. If you want the post to be filtered in this context too, you will have to edit the filter.",
+   "filter_modal.added.context_mismatch_title": "Context mismatch!",
+   "filter_modal.added.expired_explanation": "This filter category has expired, you will need to change the expiration date for it to apply.",
+diff --git a/app/javascript/mastodon/models/status.ts b/app/javascript/mastodon/models/status.ts
+index 668546ea2..a284eec5d 100644
+--- a/app/javascript/mastodon/models/status.ts
++++ b/app/javascript/mastodon/models/status.ts
+@@ -4,6 +4,7 @@ import type { ApiCollectionJSON } from 'mastodon/api_types/collections';
+ import type { ApiPreviewCardJSON } from 'mastodon/api_types/statuses';
+ 
+ export type { StatusVisibility } from 'mastodon/api_types/statuses';
++export type { StatusFederation } from 'mastodon/api_types/statuses';
+ 
+ // Temporary until we type it correctly
+ export type Status = Immutable.Map<string, unknown>;

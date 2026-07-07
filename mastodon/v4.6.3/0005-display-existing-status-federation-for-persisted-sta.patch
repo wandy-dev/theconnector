@@ -1,0 +1,137 @@
+From a4f46eeda4b1c70c0638a46da65618602e11642c Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 6 Jul 2026 15:19:01 -0400
+Subject: display existing status federation for persisted statuses
+
+---
+ app/javascript/mastodon/api_types/statuses.ts |  3 +++
+ .../ui/components/visibility_modal.tsx        | 21 +++++++++++++++----
+ app/javascript/mastodon/reducers/compose.js   |  3 +++
+ app/javascript/testing/factories.ts           |  1 +
+ app/serializers/rest/status_serializer.rb     |  6 +++++-
+ 5 files changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/app/javascript/mastodon/api_types/statuses.ts b/app/javascript/mastodon/api_types/statuses.ts
+index d61d8ceed..77b937fd1 100644
+--- a/app/javascript/mastodon/api_types/statuses.ts
++++ b/app/javascript/mastodon/api_types/statuses.ts
+@@ -14,6 +14,8 @@ export type StatusVisibility =
+   // | 'limited' // This is never exposed to the API (they become `private`)
+   | 'direct';
+ 
++export type StatusFederation = 'full' | 'limited';
++
+ export interface ApiStatusApplicationJSON {
+   name: string;
+   website: string;
+@@ -97,6 +99,7 @@ export interface ApiStatusJSON {
+   favorites_count: number;
+   quotes_count: number;
+   edited_at?: string;
++  federation: StatusFederation;
+ 
+   favorited?: boolean;
+   reblogged?: boolean;
+diff --git a/app/javascript/mastodon/features/ui/components/visibility_modal.tsx b/app/javascript/mastodon/features/ui/components/visibility_modal.tsx
+index 9e5d54d3b..12031b01c 100644
+--- a/app/javascript/mastodon/features/ui/components/visibility_modal.tsx
++++ b/app/javascript/mastodon/features/ui/components/visibility_modal.tsx
+@@ -102,9 +102,22 @@ const selectStatusPolicy = createAppSelector(
+ );
+ 
+ const selectFederationPolicy = createAppSelector(
+-  [(state) => state.compose.get('federation_policy') as ApiFederationPolicy],
+-  (composeFederationPolicy) => {
+-    return composeFederationPolicy;
++  [
++    (state) => state.statuses,
++    (_state, statusId?: string) => statusId,
++    (state) => state.compose.get('federation_policy') as ApiFederationPolicy,
++  ],
++  (statuses, statusId, composeFederationPolicy) => {
++    if (!statusId) return composeFederationPolicy;
++    const status = statuses.get(statusId);
++    if (!status) {
++      return 'full';
++    }
++    const policy = status.get('federation') as ApiFederationPolicy;
++    if (isFederationPolicy(policy)) {
++      return policy;
++    }
++    return 'full';
+   },
+ );
+ 
+@@ -141,7 +154,7 @@ export const VisibilityModal: FC<VisibilityModalProps> = forwardRef(
+       selectStatusPolicy(state, statusId),
+     );
+     const currentFederationPolicy = useAppSelector((state) =>
+-      selectFederationPolicy(state),
++      selectFederationPolicy(state, statusId),
+     );
+ 
+     const [visibility, setVisibility] = useState(currentVisibility);
+diff --git a/app/javascript/mastodon/reducers/compose.js b/app/javascript/mastodon/reducers/compose.js
+index cc2ce92cd..13277262f 100644
+--- a/app/javascript/mastodon/reducers/compose.js
++++ b/app/javascript/mastodon/reducers/compose.js
+@@ -129,6 +129,7 @@ function clearAll(state) {
+     map.set('is_changing_upload', false);
+     map.set('in_reply_to', null);
+     map.set('privacy', state.get('default_privacy'));
++    map.set('federation_policy', state.get('default_federation_policy'));
+     map.set('sensitive', state.get('default_sensitive'));
+     map.set('language', state.get('default_language'));
+     map.update('media_attachments', list => list.clear());
+@@ -539,6 +540,7 @@ export const composeReducer = (state = initialState, action) => {
+       map.set('text', action.raw_text || unescapeHTML(expandMentions(action.status)));
+       map.set('in_reply_to', action.status.get('in_reply_to_id'));
+       map.set('privacy', action.status.get('visibility'));
++      map.set('federation_policy', action.status.get('federation'));
+       map.set('media_attachments', action.status.get('media_attachments').map((media) => media.set('unattached', true)));
+       map.set('focusDate', new Date());
+       map.set('caretPosition', null);
+@@ -577,6 +579,7 @@ export const composeReducer = (state = initialState, action) => {
+       map.set('text', action.text);
+       map.set('in_reply_to', action.status.get('in_reply_to_id'));
+       map.set('privacy', action.status.get('visibility'));
++      map.set('federation_policy', action.status.get('federation'));
+       map.set('media_attachments', action.status.get('media_attachments'));
+       map.set('focusDate', new Date());
+       map.set('caretPosition', null);
+diff --git a/app/javascript/testing/factories.ts b/app/javascript/testing/factories.ts
+index 8ac03ec2a..18e59dca4 100644
+--- a/app/javascript/testing/factories.ts
++++ b/app/javascript/testing/factories.ts
+@@ -74,6 +74,7 @@ export const statusFactory: FactoryFunction<ApiStatusJSON> = ({
+   created_at: '2023-01-01T00:00:00.000Z',
+   sensitive: false,
+   visibility: 'public',
++  federation: 'full',
+   language: 'en',
+   uri: 'https://example.com/status/1',
+   url: 'https://example.com/status/1',
+diff --git a/app/serializers/rest/status_serializer.rb b/app/serializers/rest/status_serializer.rb
+index 8468029f7..d9e2f944a 100644
+--- a/app/serializers/rest/status_serializer.rb
++++ b/app/serializers/rest/status_serializer.rb
+@@ -8,7 +8,7 @@ class REST::StatusSerializer < ActiveModel::Serializer
+   attributes :id, :created_at, :in_reply_to_id, :in_reply_to_account_id,
+              :sensitive, :spoiler_text, :visibility, :language,
+              :uri, :url, :replies_count, :reblogs_count,
+-             :favourites_count, :quotes_count, :edited_at
++             :favourites_count, :quotes_count, :edited_at, :federation
+ 
+   attribute :favourited, if: :current_user?
+   attribute :reblogged, if: :current_user?
+@@ -179,6 +179,10 @@ class REST::StatusSerializer < ActiveModel::Serializer
+     }
+   end
+ 
++  def federation
++    object.theconnector_attribute&.metadata&.[]('federation')
++  end
++
+   private
+ 
+   def relationships
