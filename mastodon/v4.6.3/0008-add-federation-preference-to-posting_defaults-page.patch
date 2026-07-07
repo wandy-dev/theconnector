@@ -1,0 +1,88 @@
+From d818fc91a680f7ddba08e053f3fdec64d8167a3d Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Tue, 7 Jul 2026 13:27:55 -0400
+Subject: add federation preference to posting_defaults page
+
+---
+ app/models/user_settings.rb                           |  1 +
+ .../preferences/posting_defaults/show.html.haml       | 11 +++++++++++
+ config/locales/en.yml                                 |  3 +++
+ config/locales/simple_form.en.yml                     |  3 +++
+ 4 files changed, 18 insertions(+)
+
+diff --git a/app/models/user_settings.rb b/app/models/user_settings.rb
+index 1590ce4e8..d3281d070 100644
+--- a/app/models/user_settings.rb
++++ b/app/models/user_settings.rb
+@@ -16,6 +16,7 @@ class UserSettings
+   setting :default_sensitive, default: false
+   setting :default_privacy, default: nil, in: %w(public unlisted private)
+   setting :default_quote_policy, default: 'public', in: %w(public followers nobody)
++  setting :default_federation_policy, default: 'full', in: %w(full limited)
+   setting :email_subscriptions, default: false
+ 
+   setting_inverse_alias :indexable, :noindex
+diff --git a/app/views/settings/preferences/posting_defaults/show.html.haml b/app/views/settings/preferences/posting_defaults/show.html.haml
+index 9e1458501..c36a827e0 100644
+--- a/app/views/settings/preferences/posting_defaults/show.html.haml
++++ b/app/views/settings/preferences/posting_defaults/show.html.haml
+@@ -6,6 +6,7 @@
+ 
+ - if ['unlisted', 'private'].include?(current_user.setting_default_privacy)
+   - initial_quote_hint = I18n.t("simple_form.hints.defaults.setting_default_quote_policy_#{current_user.setting_default_privacy}")
++  - initial_federation_hint = I18n.t("simple_form.hints.defaults.setting_default_federatoin_policy_#{current_user.setting_default_federation}")
+ 
+ = simple_form_for current_user, url: settings_preferences_posting_defaults_path, html: { id: :edit_preferences } do |f|
+   = render 'shared/error_messages', object: current_user
+@@ -35,6 +36,16 @@
+                  wrapper: :with_label,
+                  wrapper_html: { data: { 'unlisted-hint': I18n.t('simple_form.hints.defaults.setting_default_quote_policy_unlisted'), 'private-hint': I18n.t('simple_form.hints.defaults.setting_default_quote_policy_private') } }
+ 
++    .fields-group
++      = ff.input :default_federation_policy,
++                 collection: user_settings_collection('default_federation_policy'),
++                 include_blank: false,
++                 label_method: ->(policy) { I18n.t("statuses.federation_policies.#{policy}") },
++                 label: I18n.t('simple_form.labels.defaults.setting_default_federation_policy'),
++                 hint: initial_federation_hint,
++                 required: false,
++                 wrapper: :with_label,
++                 wrapper_html: { data: { 'full-hint': I18n.t('simple_form.hints.defaults.setting_default_federation_policy_full'), 'limited-hint': I18n.t('simple_form.hints.defaults.setting_default_federation_policy_limted') } }
+     .fields-group
+       = ff.input :default_language,
+                  collection: [nil] + filterable_languages,
+diff --git a/config/locales/en.yml b/config/locales/en.yml
+index bb1f7f2cc..3c4c4af96 100644
+--- a/config/locales/en.yml
++++ b/config/locales/en.yml
+@@ -2134,6 +2134,9 @@ en:
+       followers: Followers only
+       nobody: Just me
+       public: Anyone
++    federation_policies:
++      full: Full
++      limited: Instance Only
+     quote_post_author: Quoted a post by %{acct}
+     title: '%{name}: "%{quote}"'
+     visibilities:
+diff --git a/config/locales/simple_form.en.yml b/config/locales/simple_form.en.yml
+index 4c9a3bce6..8fc612412 100644
+--- a/config/locales/simple_form.en.yml
++++ b/config/locales/simple_form.en.yml
+@@ -60,6 +60,8 @@ en:
+         setting_boost_modal: When enabled, boosting will first open a confirmation dialog in which you can change the visibility of your boost.
+         setting_default_quote_policy_private: Followers-only posts authored on Mastodon can't be quoted by others.
+         setting_default_quote_policy_unlisted: When people quote you, their post will also be hidden from trending timelines.
++        setting_default_federation_policy_full: When you share a post, you share it with all follower on and off your instance.
++        setting_default_federation_policy_limted: When you share a post, you share it only with your local instance.
+         setting_default_sensitive: Sensitive media is hidden by default and can be revealed with a click
+         setting_display_media_default: Warn before showing media marked as sensitive
+         setting_display_media_hide_all: Warn before showing all media
+@@ -248,6 +250,7 @@ en:
+         setting_contrast: Contrast
+         setting_default_language: Posting language
+         setting_default_privacy: Posting visibility
++        setting_default_federation_policy: Federation
+         setting_default_quote_policy: Who can quote
+         setting_default_sensitive: Always mark media as sensitive
+         setting_delete_modal: Warn me before deleting a post
