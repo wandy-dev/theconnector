@@ -1,0 +1,37 @@
+From f3922198cafa646cecd92394975ae265d9f42368 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Tue, 7 Jul 2026 22:06:31 -0400
+Subject: set default_federation_policy in initial_state_serializer
+
+---
+ app/models/concerns/user/has_settings.rb    | 4 ++++
+ app/serializers/initial_state_serializer.rb | 1 +
+ 2 files changed, 5 insertions(+)
+
+diff --git a/app/models/concerns/user/has_settings.rb b/app/models/concerns/user/has_settings.rb
+index 4fa8ab53f..dd7e31b38 100644
+--- a/app/models/concerns/user/has_settings.rb
++++ b/app/models/concerns/user/has_settings.rb
+@@ -127,6 +127,10 @@ module User::HasSettings
+     settings['default_quote_policy'] || 'public'
+   end
+ 
++  def setting_default_federation_policy
++    settings['default_federation_policy'] || 'full'
++  end
++
+   def allows_report_emails?
+     settings['notification_emails.report']
+   end
+diff --git a/app/serializers/initial_state_serializer.rb b/app/serializers/initial_state_serializer.rb
+index c3fd852ff..a932e673e 100644
+--- a/app/serializers/initial_state_serializer.rb
++++ b/app/serializers/initial_state_serializer.rb
+@@ -57,6 +57,7 @@ class InitialStateSerializer < ActiveModel::Serializer
+       store[:default_sensitive] = object_account_user.setting_default_sensitive
+       store[:default_language]  = object_account_user.preferred_posting_language
+       store[:default_quote_policy] = object_account_user.setting_default_quote_policy
++      store[:default_federation_policy] = object_account_user.setting_default_federation_policy
+     end
+ 
+     store[:text] = object.text if object.text
