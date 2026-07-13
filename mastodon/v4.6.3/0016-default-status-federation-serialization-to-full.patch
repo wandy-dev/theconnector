@@ -1,0 +1,22 @@
+From db2cc08718875b7c37e2b6becfe1c6f5f19cc734 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 13 Jul 2026 12:07:49 -0400
+Subject: default status federation serialization to full
+
+---
+ app/serializers/rest/status_serializer.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/serializers/rest/status_serializer.rb b/app/serializers/rest/status_serializer.rb
+index d9e2f944a..0954f735b 100644
+--- a/app/serializers/rest/status_serializer.rb
++++ b/app/serializers/rest/status_serializer.rb
+@@ -180,7 +180,7 @@ class REST::StatusSerializer < ActiveModel::Serializer
+   end
+ 
+   def federation
+-    object.theconnector_attribute&.metadata&.[]('federation')
++    object.theconnector_attribute&.metadata&.[]('federation') || 'full'
+   end
+ 
+   private

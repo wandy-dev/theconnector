@@ -1,0 +1,37 @@
+From d128b8b62ce1a06adf517036fade6c44bc9ad3a3 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 13 Jul 2026 10:43:36 -0400
+Subject: remove frontend calls to unneeded federation_policy endpoint
+
+---
+ app/javascript/mastodon/api/statuses.ts | 13 -------------
+ 1 file changed, 13 deletions(-)
+
+diff --git a/app/javascript/mastodon/api/statuses.ts b/app/javascript/mastodon/api/statuses.ts
+index 7be8d4801..123f2759d 100644
+--- a/app/javascript/mastodon/api/statuses.ts
++++ b/app/javascript/mastodon/api/statuses.ts
+@@ -4,7 +4,6 @@ import type {
+   ApiStatusJSON,
+ } from 'mastodon/api_types/statuses';
+ 
+-import type { ApiFederationPolicy } from '../api_types/federation';
+ import type { ApiQuotePolicy } from '../api_types/quotes';
+ 
+ export const apiGetContext = async (statusId: string) => {
+@@ -30,15 +29,3 @@ export const apiSetQuotePolicy = async (
+     },
+   );
+ };
+-
+-export const apiSetFederationPolicy = async (
+-  statusId: string,
+-  policy: ApiFederationPolicy,
+-) => {
+-  return apiRequestPut<ApiStatusJSON>(
+-    `v1/statuses/${statusId}/federation_policy`,
+-    {
+-      federation_policy: policy,
+-    },
+-  );
+-};

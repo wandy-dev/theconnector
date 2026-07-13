@@ -1,0 +1,29 @@
+From 37d806725aadce4ec4dcfe50f970aaaa4bb64af1 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 13 Jul 2026 10:30:12 -0400
+Subject: use default federation policy on the backend
+
+---
+ app/services/post_status_service.rb | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/services/post_status_service.rb b/app/services/post_status_service.rb
+index 08ea5d468..ceb4378c6 100644
+--- a/app/services/post_status_service.rb
++++ b/app/services/post_status_service.rb
+@@ -46,7 +46,6 @@ class PostStatusService < BaseService
+     @text        = @options[:text] || ''
+     @in_reply_to = @options[:thread]
+     @quoted_status = @options[:quoted_status]
+-    @federation = @options[:federation]
+ 
+     with_idempotency do
+       validate_media!
+@@ -75,6 +74,7 @@ class PostStatusService < BaseService
+     @sensitive    = (@options[:sensitive].nil? ? @account.user&.setting_default_sensitive : @options[:sensitive]) || @options[:spoiler_text].present?
+     @text         = @options.delete(:spoiler_text) if @text.blank? && @options[:spoiler_text].present? && @quoted_status.blank?
+     @visibility   = @options[:visibility] || @account.user&.setting_default_privacy
++    @federation   = @options[:federation] || @account.user&.setting_default_federation_policy
+     @visibility   = :unlisted if @visibility&.to_sym == :public && @account.silenced?
+     @visibility   = :private if @quoted_status&.private_visibility? && %i(public unlisted).include?(@visibility&.to_sym)
+     @scheduled_at = @options[:scheduled_at]&.to_datetime

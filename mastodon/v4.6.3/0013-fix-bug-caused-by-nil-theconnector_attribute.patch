@@ -1,0 +1,48 @@
+From 1943e35c51d2e4f25783174a657fc9952794681a Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 13 Jul 2026 10:59:07 -0400
+Subject: fix bug caused by nil theconnector_attribute
+
+---
+ app/models/status.rb                 | 5 ++++-
+ app/models/theconnector_attribute.rb | 4 +++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/app/models/status.rb b/app/models/status.rb
+index 2dd9fa44f..ba80f1426 100644
+--- a/app/models/status.rb
++++ b/app/models/status.rb
+@@ -185,7 +185,6 @@ class Status < ApplicationRecord
+   )
+ 
+   delegate :domain, :indexable?, to: :account, prefix: true
+-  delegate :federation_full?, to: :theconnector_attribute
+ 
+   REAL_TIME_WINDOW = 6.hours
+ 
+@@ -416,6 +415,10 @@ class Status < ApplicationRecord
+     end
+   end
+ 
++  def federation_full?
++    theconnector_attribute&.federation_full?
++  end
++
+   private
+ 
+   def update_status_stat!(attrs)
+diff --git a/app/models/theconnector_attribute.rb b/app/models/theconnector_attribute.rb
+index 808c4c1e6..1a4680943 100644
+--- a/app/models/theconnector_attribute.rb
++++ b/app/models/theconnector_attribute.rb
+@@ -14,7 +14,9 @@
+ class TheconnectorAttribute < ApplicationRecord
+   belongs_to :theconnector_attributable, polymorphic: true
+ 
++  store_accessor :metadata, :federation
++
+   def federation_full?
+-    metadata['federation'] == 'full'
++    federation == 'full'
+   end
+ end

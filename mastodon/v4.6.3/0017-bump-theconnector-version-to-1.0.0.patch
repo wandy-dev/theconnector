@@ -1,0 +1,27 @@
+From 5d06256fe4688f4805ab0c414122384a1ffad4ec Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 13 Jul 2026 12:08:46 -0400
+Subject: bump theconnector version to 1.0.0
+
+---
+ lib/theconnector/version.rb | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/theconnector/version.rb b/lib/theconnector/version.rb
+index 935aff138..fbae0935b 100644
+--- a/lib/theconnector/version.rb
++++ b/lib/theconnector/version.rb
+@@ -5,11 +5,11 @@ module Theconnector
+     module_function
+ 
+     def major
+-      0
++      1
+     end
+ 
+     def minor
+-      2
++      0
+     end
+ 
+     def patch

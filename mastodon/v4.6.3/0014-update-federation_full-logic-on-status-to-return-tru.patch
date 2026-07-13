@@ -1,0 +1,23 @@
+From 8063aa8e54add3fbc21c4b6351fa21c9ea410662 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 13 Jul 2026 11:04:44 -0400
+Subject: update federation_full? logic on status to return true if
+ theconnector_attribute is null
+
+---
+ app/models/status.rb | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/app/models/status.rb b/app/models/status.rb
+index ba80f1426..6f2be85a4 100644
+--- a/app/models/status.rb
++++ b/app/models/status.rb
+@@ -416,6 +416,8 @@ class Status < ApplicationRecord
+   end
+ 
+   def federation_full?
++    return true if theconnector_attribute.nil?
++
+     theconnector_attribute&.federation_full?
+   end
+ 

@@ -1,0 +1,79 @@
+From 3b16f9401b6d7570a75d6a7bd63adc130b648801 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 13 Jul 2026 10:33:47 -0400
+Subject: disable status federation dropdown on status edit
+
+---
+ .../ui/components/visibility_modal.tsx        | 31 +++++++++++++++----
+ app/javascript/mastodon/locales/en.json       |  1 +
+ 2 files changed, 26 insertions(+), 6 deletions(-)
+
+diff --git a/app/javascript/mastodon/features/ui/components/visibility_modal.tsx b/app/javascript/mastodon/features/ui/components/visibility_modal.tsx
+index 12031b01c..b50759819 100644
+--- a/app/javascript/mastodon/features/ui/components/visibility_modal.tsx
++++ b/app/javascript/mastodon/features/ui/components/visibility_modal.tsx
+@@ -166,6 +166,7 @@ export const VisibilityModal: FC<VisibilityModalProps> = forwardRef(
+     const disableVisibility = !!statusId;
+     const disableQuotePolicy =
+       visibility === 'private' || visibility === 'direct';
++    const disableFederationPolicy = !!statusId;
+     const disablePublicVisibilities = useAppSelector(
+       selectDisablePublicVisibilities,
+     );
+@@ -391,7 +392,11 @@ export const VisibilityModal: FC<VisibilityModalProps> = forwardRef(
+               </div>
+             )}
+ 
+-            <div className={classNames('visibility-dropdown')}>
++            <div
++              className={classNames('visibility-dropdown', {
++                disabled: disableFederationPolicy,
++              })}
++            >
+               {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
+               <label
+                 className='visibility-dropdown__label'
+@@ -410,12 +415,26 @@ export const VisibilityModal: FC<VisibilityModalProps> = forwardRef(
+                 labelId={federationLabelId}
+                 descriptionId={federationDescriptionId}
+                 classPrefix='visibility-dropdown'
++                disabled={disableFederationPolicy}
+               />
+-              <FederationPolicyHelper
+-                policy={federationPolicy}
+-                className='visibility-dropdown__helper'
+-                id={federationDescriptionId}
+-              />
++              {!!statusId && (
++                <p
++                  className='visibility-dropdown__helper'
++                  id={federationDescriptionId}
++                >
++                  <FormattedMessage
++                    id='visibility_modal.helper.federation_editing'
++                    defaultMessage="Federation can't be changed after a post is published."
++                  />
++                </p>
++              )}
++              {!statusId && (
++                <FederationPolicyHelper
++                  policy={federationPolicy}
++                  className='visibility-dropdown__helper'
++                  id={federationDescriptionId}
++                />
++              )}
+             </div>
+           </div>
+           <div className='dialog-modal__content__actions'>
+diff --git a/app/javascript/mastodon/locales/en.json b/app/javascript/mastodon/locales/en.json
+index 76ce80794..3804d9f04 100644
+--- a/app/javascript/mastodon/locales/en.json
++++ b/app/javascript/mastodon/locales/en.json
+@@ -1379,6 +1379,7 @@
+   "visibility_modal.federation_limited": "Instance only",
+   "visibility_modal.header": "Visibility and interaction",
+   "visibility_modal.helper.direct_quoting": "Private mentions authored on Mastodon can't be quoted by others.",
++  "visibility_modal.helper.federation_editing": "Federation can't be changed after a post is published.",
+   "visibility_modal.helper.privacy_editing": "Visibility can't be changed after a post is published.",
+   "visibility_modal.helper.privacy_private_self_quote": "Self-quotes of private posts cannot be made public.",
+   "visibility_modal.helper.private_quoting": "Follower-only posts authored on Mastodon can't be quoted by others.",

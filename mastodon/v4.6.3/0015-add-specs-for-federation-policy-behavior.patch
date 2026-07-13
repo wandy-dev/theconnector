@@ -1,0 +1,211 @@
+From d62440cf6c610473c4368034ffe54e6e08b02732 Mon Sep 17 00:00:00 2001
+From: wandy-dev <hello@wandy.dev>
+Date: Mon, 13 Jul 2026 11:49:50 -0400
+Subject: add specs for federation policy behavior
+
+---
+ spec/models/status_spec.rb                    | 17 +++++++
+ spec/models/theconnector_attribute_spec.rb    | 27 ++++++++++
+ spec/requests/api/v1/statuses_spec.rb         | 36 +++++++++++++
+ .../rest/status_serializer_spec.rb            | 19 +++++++
+ spec/services/post_status_service_spec.rb     | 50 +++++++++++++++++++
+ 5 files changed, 149 insertions(+)
+ create mode 100644 spec/models/theconnector_attribute_spec.rb
+
+diff --git a/spec/models/status_spec.rb b/spec/models/status_spec.rb
+index 06524fc48..66cb61215 100644
+--- a/spec/models/status_spec.rb
++++ b/spec/models/status_spec.rb
+@@ -26,6 +26,23 @@ RSpec.describe Status do
+     end
+   end
+ 
++  describe '#federation_full?' do
++    it 'delegates to theconnector_attribute' do
++      subject.theconnector_attribute = TheconnectorAttribute.create(metadata: { 'federation' => 'full' })
++      expect(subject.federation_full?).to be true
++    end
++
++    it 'returns false when theconnector_attribute has federation limited' do
++      subject.theconnector_attribute = TheconnectorAttribute.create(metadata: { 'federation' => 'limited' })
++      expect(subject.federation_full?).to be false
++    end
++
++    it 'returns true when theconnector_attribute is nil' do
++      expect(subject.theconnector_attribute).to be_nil
++      expect(subject.federation_full?).to be true
++    end
++  end
++
+   describe '#reblog?' do
+     it 'returns true when the status reblogs another status' do
+       subject.reblog = other
+diff --git a/spec/models/theconnector_attribute_spec.rb b/spec/models/theconnector_attribute_spec.rb
+new file mode 100644
+index 000000000..cf2b3f4bd
+--- /dev/null
++++ b/spec/models/theconnector_attribute_spec.rb
+@@ -0,0 +1,27 @@
++# frozen_string_literal: true
++
++require 'rails_helper'
++
++RSpec.describe TheconnectorAttribute do
++  describe '#federation_full?' do
++    it 'returns true when metadata federation is full' do
++      attribute = described_class.new(metadata: { 'federation' => 'full' })
++      expect(attribute.federation_full?).to be true
++    end
++
++    it 'returns false when metadata federation is limited' do
++      attribute = described_class.new(metadata: { 'federation' => 'limited' })
++      expect(attribute.federation_full?).to be false
++    end
++
++    it 'returns false when metadata is empty' do
++      attribute = described_class.new(metadata: {})
++      expect(attribute.federation_full?).to be false
++    end
++
++    it 'returns false when metadata is nil' do
++      attribute = described_class.new(metadata: nil)
++      expect(attribute.federation_full?).to be false
++    end
++  end
++end
+diff --git a/spec/requests/api/v1/statuses_spec.rb b/spec/requests/api/v1/statuses_spec.rb
+index e3bfe60da..550206a87 100644
+--- a/spec/requests/api/v1/statuses_spec.rb
++++ b/spec/requests/api/v1/statuses_spec.rb
+@@ -410,6 +410,42 @@ RSpec.describe '/api/v1/statuses' do
+         end
+       end
+ 
++      context 'with federation: limited' do
++        let(:params) { { status: 'Hello world', federation: 'limited' } }
++
++        it 'creates status with limited federation', :aggregate_failures do
++          subject
++
++          expect(response).to have_http_status(200)
++          expect(response.parsed_body[:federation]).to eq 'limited'
++        end
++      end
++
++      context 'with federation: full' do
++        let(:params) { { status: 'Hello world', federation: 'full' } }
++
++        it 'creates status with full federation', :aggregate_failures do
++          subject
++
++          expect(response).to have_http_status(200)
++          expect(response.parsed_body[:federation]).to eq 'full'
++        end
++      end
++
++      context 'without federation param and user default is limited' do
++        let(:user) do
++          Fabricate(:user, settings: { 'default_federation_policy' => 'limited' })
++        end
++        let(:params) { { status: 'Hello world' } }
++
++        it 'uses user default federation policy', :aggregate_failures do
++          subject
++
++          expect(response).to have_http_status(200)
++          expect(response.parsed_body[:federation]).to eq 'limited'
++        end
++      end
++
+       context 'when exceeding rate limit' do
+         before do
+           rate_limiter = RateLimiter.new(user.account, family: :statuses)
+diff --git a/spec/serializers/rest/status_serializer_spec.rb b/spec/serializers/rest/status_serializer_spec.rb
+index 0ad484179..88de0e003 100644
+--- a/spec/serializers/rest/status_serializer_spec.rb
++++ b/spec/serializers/rest/status_serializer_spec.rb
+@@ -110,4 +110,23 @@ RSpec.describe REST::StatusSerializer do
+       end
+     end
+   end
++
++  context 'with federation policy' do
++    it 'serializes federation as full when theconnector_attribute has federation full' do
++      status.theconnector_attribute = TheconnectorAttribute.create(metadata: { 'federation' => 'full' })
++
++      expect(subject['federation']).to eq 'full'
++    end
++
++    it 'serializes federation as limited when theconnector_attribute has federation limited' do
++      status.theconnector_attribute = TheconnectorAttribute.create(metadata: { 'federation' => 'limited' })
++
++      expect(subject['federation']).to eq 'limited'
++    end
++
++    it 'serializes federation as full when status has no theconnector_attribute' do
++      expect(status.theconnector_attribute).to be_nil
++      expect(subject['federation']).to eq 'full'
++    end
++  end
+ end
+diff --git a/spec/services/post_status_service_spec.rb b/spec/services/post_status_service_spec.rb
+index 66ef93f80..7c6084235 100644
+--- a/spec/services/post_status_service_spec.rb
++++ b/spec/services/post_status_service_spec.rb
+@@ -346,6 +346,56 @@ RSpec.describe PostStatusService do
+     expect(status2.id).to eq status1.id
+   end
+ 
++  context 'with federation policy' do
++    it 'creates a theconnector_attribute with federation full when federation: full is passed' do
++      account = Fabricate(:account)
++      status = subject.call(account, text: 'test', federation: 'full')
++
++      expect(status.theconnector_attribute).to be_present
++      expect(status.theconnector_attribute.federation_full?).to be true
++    end
++
++    it 'creates a theconnector_attribute with federation limited when federation: limited is passed' do
++      account = Fabricate(:account)
++      status = subject.call(account, text: 'test', federation: 'limited')
++
++      expect(status.theconnector_attribute).to be_present
++      expect(status.theconnector_attribute.federation_full?).to be false
++    end
++
++    it 'falls back to user default_federation_policy when no federation option is provided' do
++      account = Fabricate(:account, user: Fabricate(:user, settings: { 'default_federation_policy' => 'limited' }))
++      status = subject.call(account, text: 'test')
++
++      expect(status.theconnector_attribute.federation_full?).to be false
++    end
++
++    it 'defaults to full when user has no default setting' do
++      account = Fabricate(:account, user: Fabricate(:user))
++      status = subject.call(account, text: 'test')
++
++      expect(status.theconnector_attribute.federation_full?).to be true
++    end
++
++    it 'does not enqueue ActivityPub::DistributionWorker when federation is limited' do
++      allow(ActivityPub::DistributionWorker).to receive(:perform_async)
++      account = Fabricate(:account)
++
++      subject.call(account, text: 'test', federation: 'limited')
++
++      expect(ActivityPub::DistributionWorker).to_not have_received(:perform_async)
++    end
++
++    it 'enqueues ActivityPub::DistributionWorker when federation is full' do
++      allow(ActivityPub::DistributionWorker).to receive(:perform_async)
++      account = Fabricate(:account)
++
++      subject.call(account, text: 'test', federation: 'full')
++
++      expect(ActivityPub::DistributionWorker).to have_received(:perform_async)
++    end
++  end
++
+   def create_status_with_options(**options)
+     subject.call(Fabricate(:account), options.merge(text: 'test'))
+   end
